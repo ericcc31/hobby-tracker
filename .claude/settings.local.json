@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\" -Force)",
+      "Bash(Select-Object Name, Length, PSIsContainer, LastWriteTime)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(npm --version)",
+      "Bash(npx expo *)",
+      "Bash(npx eas *)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\" -Recurse -Force | Select-Object FullName, @{Name='Type';Expression={if\\($_.PSIsContainer\\){'DIR'}else{'FILE'}}}, Length | Sort-Object FullName)",
+      "Bash(powershell.exe -Command \"Get-Command node,npm -ErrorAction SilentlyContinue\")",
+      "PowerShell(cd \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\"; @\\(\"package.json\", \"app.json\", \"App.tsx\", \"App.js\", \"expo.json\", \"tsconfig.json\", \"node_modules\"\\) | ForEach-Object { if \\(Test-Path $_\\) { Write-Host \"$_ exists\" } else { Write-Host \"$_ does not exist\" } })",
+      "Bash(where node *)",
+      "Bash(where npm *)",
+      "Bash(powershell.exe -Command \"Get-Command node,npm,git -ErrorAction SilentlyContinue\")",
+      "Bash(ls -la \"C:\\\\Users\\\\ericm\\\\.claude\\\\plans\" 2>&1 | head -5)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\ericm\\\\.claude\\\\plans\" 2>&1; echo done)",
+      "Bash(ls -la \"C:\\\\Users\\\\ericm\\\\.claude\\\\plans\" 2>&1)",
+      "Bash(grep -n \"app.json.*App.tsx\" /dev/null 2>&1; echo ok)",
+      "Bash(echo \"checking Write tool availability isn't needed via bash - just verifying path\"; ls -la \"C:\\\\Users\\\\ericm\\\\.claude\\\\plans\" 2>&1)",
+      "Read(//c/Users/ericm/.claude/plans/**)",
+      "PowerShell(Get-Command winget -ErrorAction SilentlyContinue)",
+      "PowerShell(winget --version)",
+      "PowerShell(winget install --id OpenJS.NodeJS.LTS -e --accept-package-agreements --accept-source-agreements)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); node --version; npm --version)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); cd \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\"; npx --yes create-expo-app@latest . --yes 2>&1 | Out-String -Width 200)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); npx --yes create-expo-app@latest --help 2>&1 | Out-String -Width 200)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); cd \"C:\\\\Claude\\\\Code\"; npx --yes create-expo-app@latest wet-palette-tmp --yes --no-agents-md --no-install 2>&1 | Out-String -Width 200)",
+      "PowerShell($src = \"C:\\\\Claude\\\\Code\\\\wet-palette-tmp\"; $dst = \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\"; $items = Get-ChildItem $src -Force | Where-Object { $_.Name -ne \".git\" }; foreach \\($item in $items\\) { Move-Item -Path $item.FullName -Destination $dst -Force }; Remove-Item $src -Recurse -Force; Get-ChildItem $dst -Force | Select-Object Name)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); cd \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\"; npm install 2>&1 | Out-String -Width 200)"
+    ]
+  }
+}

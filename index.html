@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hobby Tracker">
+<title>Warhammer Hobby Tracker</title>
+<style>
+  :root{
+    --bg:#0f0f12;
+    --surface:#1b1b20;
+    --surface-2:#24242b;
+    --border:#33333c;
+    --text:#f2f2f0;
+    --text-secondary:#a3a3ad;
+    --accent:#c0392b;
+    --bought:#7a7a82;
+    --built:#b9772e;
+    --primed:#3672b9;
+    --painted:#3e8e5e;
+    --based:#8b5fb0;
+    --transfers:#c9a227;
+    --finished:#d65c8a;
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg:#f4f3f0;
+      --surface:#ffffff;
+      --surface-2:#eceae5;
+      --border:#dcdad4;
+      --text:#1a1a1a;
+      --text-secondary:#6b6b6b;
+    }
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; height:100%; overscroll-behavior:none;}
+  #app{max-width:600px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom);}
+
+  header{position:sticky; top:0; z-index:10; background:var(--bg); padding:calc(env(safe-area-inset-top) + 14px) 16px 10px; display:flex; align-items:center; justify-content:space-between; border-bottom:0.5px solid var(--border); gap:8px;}
+  header h1{font-size:19px; font-weight:600; margin:0; white-space:nowrap;}
+  .icon-btn{background:none; border:none; color:var(--text); font-size:22px; padding:6px 8px; cursor:pointer; line-height:1;}
+  .icon-btn:active{opacity:0.5;}
+  .header-actions{display:flex; align-items:center;}
+
+  main{flex:1; padding:14px 16px 118px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* All/Faction segmented toggle + stage filter icon */
+  .view-toggle-row{display:flex; align-items:center; gap:8px; margin-bottom:14px;}
+  .segmented{flex:1; display:flex; background:var(--surface); border:0.5px solid var(--border); border-radius:10px; padding:3px;}
+  .seg-btn{flex:1; padding:8px 0; border:none; background:none; border-radius:8px; color:var(--text-secondary); font-weight:600; font-size:13px; cursor:pointer;}
+  .seg-btn.active{background:var(--text); color:var(--bg);}
+  .filter-toggle-btn{position:relative; flex:0 0 auto; width:40px; height:40px; border-radius:10px; border:0.5px solid var(--border); background:var(--surface); color:var(--text); font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .filter-toggle-btn.active{background:var(--text); color:var(--bg); border-color:var(--text);}
+  .filter-select-overlay{position:absolute; inset:0; width:100%; height:100%; opacity:0; border:none; cursor:pointer; -webkit-appearance:none; appearance:none;}
+
+  /* In-progress spotlight card */
+  .inprogress-card{background:var(--surface); border:0.5px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:20px; display:flex; gap:14px; align-items:center; cursor:pointer;}
+  .inprogress-thumb{width:64px; height:64px; border-radius:12px; overflow:hidden; background:var(--surface-2); flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:24px;}
+  .inprogress-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .inprogress-info p{margin:0;}
+  .inprogress-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--accent); margin-bottom:4px !important;}
+  .inprogress-faction{font-size:12px; color:var(--text-secondary);}
+  .inprogress-name{font-size:16px; font-weight:700; margin:2px 0 4px !important;}
+  .inprogress-stage{font-size:12px; color:var(--text-secondary);}
+
+  /* Allegiance grouping (Faction view) */
+  .allegiance-section{margin-bottom:26px;}
+  .allegiance-header{font-size:15px; font-weight:800; margin:0 0 12px; letter-spacing:0.3px;}
+  .allegiance-header .allegiance-count{font-weight:500; color:var(--text-secondary); font-size:13px;}
+
+  .empty-state{text-align:center; padding:60px 20px; color:var(--text-secondary);}
+  .empty-state .big{font-size:40px; margin-bottom:10px;}
+  .empty-state p{font-size:15px; line-height:1.5;}
+
+  .faction-section{margin-bottom:24px;}
+  .faction-header{font-size:13px; font-weight:700; margin:0 0 10px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.4px;}
+  .faction-header .faction-count{font-weight:500; text-transform:none; letter-spacing:0;}
+
+  .unit-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
+  .unit-card{background:var(--surface); border:0.5px solid var(--border); border-radius:var(--radius); overflow:hidden; cursor:pointer; display:flex; flex-direction:column;}
+  .unit-thumb{width:100%; aspect-ratio:1/1; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; color:var(--text-secondary); font-size:30px;}
+  .unit-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .unit-info{padding:10px 12px 12px;}
+  .unit-name{font-size:14px; font-weight:600; margin:0 0 2px; line-height:1.3;}
+  .unit-faction{font-size:12px; color:var(--text-secondary); margin:0 0 8px;}
+  .stage-pill{display:inline-block; font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; color:#fff;}
+
+  /* Bottom tab bar */
+  .bottom-tabbar-wrap{position:fixed; bottom:0; left:0; right:0; max-width:600px; margin:0 auto; padding:10px 16px calc(env(safe-area-inset-bottom) + 10px); display:flex; align-items:center; gap:10px; z-index:30; background:var(--bg); border-top:0.5px solid var(--border);}
+  .bottom-tabbar{flex:1; display:flex; background:var(--surface); border:0.5px solid var(--border); border-radius:20px; padding:5px; gap:4px;}
+  .bottom-tab-btn{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:7px 4px; border-radius:15px; background:none; border:none; color:var(--text-secondary); font-size:10px; font-weight:600; cursor:pointer;}
+  .bottom-tab-btn .tab-icon{font-size:19px; line-height:1;}
+  .bottom-tab-btn.active{color:var(--text); background:var(--surface-2);}
+  .bottom-add-btn{flex:0 0 auto; width:48px; height:48px; border-radius:50%; background:var(--accent); color:#fff; font-size:26px; border:none; box-shadow:0 4px 14px rgba(0,0,0,0.35); cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .bottom-add-btn:active{transform:scale(0.93);}
+  .bottom-add-btn[style*="hidden"]{pointer-events:none;}
+
+  .screen{position:fixed; inset:0; background:var(--bg); z-index:50; display:flex; flex-direction:column; transform:translateX(100%); transition:transform 0.25s ease; max-width:600px; margin:0 auto;}
+  .screen.open{transform:translateX(0);}
+  .screen header{background:var(--bg);}
+  .screen main{padding:14px 16px 120px; overflow-y:auto; flex:1;}
+
+  label.field-label{display:block; font-size:13px; color:var(--text-secondary); margin:18px 0 6px; font-weight:600;}
+  label.field-label:first-child{margin-top:0;}
+  input[type=text], textarea, select{width:100%; padding:11px 14px; border-radius:10px; border:0.5px solid var(--border); background:var(--surface); color:var(--text); font-size:16px; font-family:inherit;}
+  textarea{min-height:90px; resize:vertical;}
+  select:disabled{opacity:0.5;}
+
+  .stage-row{display:flex; gap:6px; flex-wrap:wrap;}
+  .stage-btn{flex:1 1 auto; min-width:64px; padding:10px 6px; border-radius:10px; border:0.5px solid var(--border); background:var(--surface); color:var(--text-secondary); font-size:11px; font-weight:600; text-align:center; cursor:pointer;}
+  .stage-btn.active{color:#fff; border-color:transparent;}
+
+  .photo-strip{display:flex; gap:10px; overflow-x:auto; padding:4px 0 8px;}
+  .photo-strip::-webkit-scrollbar{display:none;}
+  .photo-item{position:relative; flex:0 0 auto; width:110px; height:110px; border-radius:12px; overflow:hidden; background:var(--surface-2);}
+  .photo-item img{width:100%; height:100%; object-fit:cover; display:block;}
+  .photo-del{position:absolute; top:4px; right:4px; width:24px; height:24px; border-radius:50%; background:rgba(0,0,0,0.6); color:#fff; border:none; font-size:14px; display:flex; align-items:center; justify-content:center;}
+  .add-photo{flex:0 0 auto; width:110px; height:110px; border-radius:12px; border:1.5px dashed var(--border); display:flex; align-items:center; justify-content:center; color:var(--text-secondary); font-size:28px; cursor:pointer; background:var(--surface);}
+
+  .bottom-bar{position:fixed; bottom:0; left:0; right:0; max-width:600px; margin:0 auto; padding:12px 16px calc(env(safe-area-inset-bottom) + 12px); background:var(--bg); border-top:0.5px solid var(--border); display:flex; gap:10px;}
+  .btn{flex:1; padding:13px; border-radius:12px; border:0.5px solid var(--border); background:var(--surface); color:var(--text); font-size:15px; font-weight:600; text-align:center; cursor:pointer;}
+  .btn.primary{background:var(--accent); color:#fff; border-color:var(--accent);}
+  .btn.danger{color:#e0564a;}
+  .btn:active{opacity:0.7;}
+  .btn.small{flex:0 0 auto; padding:8px 14px; font-size:13px;}
+
+  #lightbox{position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:100; display:none; align-items:center; justify-content:center;}
+  #lightbox img{max-width:92%; max-height:80vh; object-fit:contain; border-radius:8px;}
+  #lightbox .lb-close{position:absolute; top:calc(env(safe-area-inset-top) + 14px); right:18px; color:#fff; font-size:30px; background:none; border:none;}
+
+  input[type=file]{display:none;}
+
+  .recipe-card{background:var(--surface); border:0.5px solid var(--border); border-radius:var(--radius); padding:12px; margin-bottom:12px; display:flex; gap:12px; cursor:pointer;}
+  .recipe-thumb{width:64px; height:64px; border-radius:10px; background:var(--surface-2); flex:0 0 auto; overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:22px; color:var(--text-secondary);}
+  .recipe-thumb img{width:100%; height:100%; object-fit:cover;}
+  .recipe-name{font-size:15px; font-weight:600; margin:0 0 4px;}
+  .recipe-meta{font-size:12px; color:var(--text-secondary); margin:0;}
+
+  .step-card{background:var(--surface); border:0.5px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px;}
+  .step-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .step-head span{font-size:12px; color:var(--text-secondary); font-weight:600;}
+  .step-del{background:none; border:none; color:var(--text-secondary); font-size:18px; cursor:pointer;}
+  .step-card input, .step-card select{margin-bottom:8px;}
+  .step-card input:last-child, .step-card select:last-child{margin-bottom:0;}
+  .paint-picker-row{display:flex; gap:8px; margin-bottom:8px;}
+  .paint-picker-row select{flex:1; margin-bottom:0;}
+  .paint-picker-hint{font-size:11px; color:var(--text-secondary); margin:0 0 8px;}
+  .add-step-btn{width:100%; padding:11px; border-radius:10px; border:1.5px dashed var(--border); background:none; color:var(--text-secondary); font-size:14px; cursor:pointer; margin-bottom:14px;}
+
+  .pin-row{display:flex; flex-wrap:wrap; gap:6px;}
+  .pin-chip{padding:6px 12px; border-radius:20px; border:0.5px solid var(--border); background:var(--surface); color:var(--text-secondary); font-size:13px; cursor:pointer;}
+  .pin-chip.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+  .catalog-row{display:flex; gap:8px; margin-bottom:6px;}
+  .catalog-row select{flex:1;}
+  .catalog-hint{font-size:11px; color:var(--text-secondary); margin:0 0 4px;}
+
+  .progress-summary{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:20px;}
+  .summary-card{background:var(--surface); border:0.5px solid var(--border); border-radius:12px; padding:14px;}
+  .summary-num{font-size:26px; font-weight:700; margin:0 0 2px;}
+  .summary-label{font-size:12px; color:var(--text-secondary); margin:0;}
+
+  .bar-row{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .bar-label{width:78px; font-size:12px; color:var(--text-secondary); flex:0 0 auto;}
+  .bar-track{flex:1; height:18px; background:var(--surface-2); border-radius:6px; overflow:hidden;}
+  .bar-fill{height:100%; border-radius:6px;}
+  .bar-count{width:30px; text-align:right; font-size:12px; font-weight:600; flex:0 0 auto;}
+
+  .recipe-link-tag{display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); padding:6px 10px; border-radius:10px; font-size:13px; margin:4px 6px 0 0;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1 id="mainTitle">Hobby tracker</h1>
+  </header>
+
+  <main>
+    <div class="view active" id="view-units">
+      <div class="view-toggle-row">
+        <div class="segmented" id="viewModeSegmented">
+          <button class="seg-btn active" data-mode="all">All</button>
+          <button class="seg-btn" data-mode="faction">Faction</button>
+        </div>
+        <div class="filter-toggle-btn" title="Filter by stage">
+          &#128269;
+          <select id="stageFilterSelect" class="filter-select-overlay"></select>
+        </div>
+      </div>
+      <div id="inProgressArea"></div>
+      <div id="listArea"></div>
+    </div>
+
+    <div class="view" id="view-recipes">
+      <div id="recipeListArea"></div>
+    </div>
+
+    <div class="view" id="view-progress">
+      <div id="progressArea"></div>
+    </div>
+  </main>
+
+</div>
+
+<div class="bottom-tabbar-wrap">
+  <div class="bottom-tabbar">
+    <button class="bottom-tab-btn active" data-view="units"><span class="tab-icon">&#127968;</span><span>Units</span></button>
+    <button class="bottom-tab-btn" data-view="recipes"><span class="tab-icon">&#127912;</span><span>Recipes</span></button>
+    <button class="bottom-tab-btn" data-view="progress"><span class="tab-icon">&#128202;</span><span>Progress</span></button>
+  </div>
+  <button class="bottom-add-btn" id="addBtnBottom">+</button>
+</div>
+
+<!-- Unit Detail / Edit screen -->
+<div class="screen" id="detailScreen">
+  <header>
+    <button class="icon-btn" id="backBtn">&larr;</button>
+    <h1 id="detailTitle">Unit</h1>
+    <button class="icon-btn" id="deleteUnitBtn" title="Delete">&#128465;</button>
+  </header>
+  <main>
+    <label class="field-label">Photos (up to 10)</label>
+    <div class="photo-strip" id="photoStrip"></div>
+    <input type="file" id="photoInput" accept="image/*">
+
+    <label class="field-label">Army</label>
+    <select id="armySelect"><option value="">Choose army...</option></select>
+    <input type="text" id="customArmyInput" placeholder="Type army name (e.g. Aeldari, T'au)" style="display:none; margin-top:8px;">
+
+    <div id="chapterFieldWrapper" style="display:none;">
+      <label class="field-label">Chapter</label>
+      <select id="chapterSelect">
+        <option value="">None (Codex-compliant)</option>
+        <option value="Blood Angels">Blood Angels</option>
+        <option value="Dark Angels">Dark Angels</option>
+        <option value="Space Wolves">Space Wolves</option>
+        <option value="Black Templars">Black Templars</option>
+        <option value="Deathwatch">Deathwatch</option>
+      </select>
+    </div>
+
+    <label class="field-label">Unit name</label>
+    <select id="catalogUnitSelect" disabled style="margin-bottom:8px;"><option value="">Pick from catalog (optional)...</option></select>
+    <input type="text" id="nameInput" placeholder="e.g. Intercessor Squad">
+
+    <label class="field-label">Progress stage</label>
+    <div class="stage-row" id="stageRow"></div>
+
+    <label class="field-label">Pinned paint recipes</label>
+    <div id="pinnedRecipesArea"></div>
+    <div class="pin-row" id="recipePinRow" style="margin-top:8px;"></div>
+
+    <label class="field-label">Spotlight</label>
+    <button class="btn small" id="pinInProgressBtn" style="width:100%;">&#128204; Pin as In Progress</button>
+
+    <label class="field-label">Notes</label>
+    <textarea id="notesInput" placeholder="Paint scheme, conversions, plans..."></textarea>
+  </main>
+  <div class="bottom-bar">
+    <button class="btn primary" id="saveUnitBtn">Save</button>
+  </div>
+</div>
+
+<!-- Recipe Detail / Edit screen -->
+<div class="screen" id="recipeScreen">
+  <header>
+    <button class="icon-btn" id="recipeBackBtn">&larr;</button>
+    <h1 id="recipeTitle">Recipe</h1>
+    <button class="icon-btn" id="deleteRecipeBtn" title="Delete">&#128465;</button>
+  </header>
+  <main>
+    <label class="field-label">Finished photo</label>
+    <div class="photo-strip" id="recipePhotoStrip"></div>
+    <input type="file" id="recipePhotoInput" accept="image/*">
+
+    <label class="field-label">Recipe name</label>
+    <input type="text" id="recipeNameInput" placeholder="e.g. Ultramarines blue armor">
+
+    <label class="field-label">Steps</label>
+    <div id="stepsArea"></div>
+    <button class="add-step-btn" id="addStepBtn">+ Add step</button>
+
+    <label class="field-label">Pin to units</label>
+    <div class="pin-row" id="unitPinRow"></div>
+  </main>
+  <div class="bottom-bar">
+    <button class="btn primary" id="saveRecipeBtn">Save</button>
+  </div>
+</div>
+
+<div id="lightbox">
+  <button class="lb-close" id="lbClose">&times;</button>
+  <img id="lbImg" src="">
+</div>
+
+<script>
+const STAGES = [
+  {id:'bought', label:'Bought', color:'var(--bought)'},
+  {id:'built', label:'Built', color:'var(--built)'},
+  {id:'primed', label:'Primed', color:'var(--primed)'},
+  {id:'painted', label:'Painted', color:'var(--painted)'},
+  {id:'based', label:'Based', color:'var(--based)'},
+  {id:'transfers', label:'Transfers', color:'var(--transfers)'},
+  {id:'finished', label:'Finished', color:'var(--finished)'}
+];
+const MAX_PHOTOS = 10;
+
+// Starter paint catalog. Not exhaustive -- just add more names to these
+// arrays any time and they'll show up in the picker automatically.
+const PAINT_CATALOG = {
+  "Citadel": {
+    "Base": ["Abaddon Black","Corax White","Mephiston Red","Macragge Blue","Caliban Green","Averland Sunset","Zandri Dust","Rhinox Hide","Leadbelcher","Retributor Armour","Balthasar Gold","Khorne Red","Ultramarines Blue","Waaagh! Flesh","Kantor Blue","White Scar","Dryad Bark","Naggaroth Night","Screamer Pink","Wraithbone","Mournfang Brown","Doombull Brown"],
+    "Layer": ["Evil Sunz Scarlet","Wazdakka Red","Troll Slayer Orange","Fire Dragon Bright","Yriel Yellow","Flash Gitz Yellow","Sybarite Green","Warpstone Glow","Sotek Green","Teclis Blue","Hoeth Blue","Lothern Blue","Alaitoc Blue","Fenrisian Grey","Celestra Grey","Administratum Grey","Ulthuan Grey","Pallid Wych Flesh","Cadian Fleshtone","Kislev Flesh","Bugman's Glow","Ushabti Bone"],
+    "Shade": ["Nuln Oil","Agrax Earthshade","Reikland Fleshshade","Seraphim Sepia","Carroburg Crimson","Drakenhof Nightshade","Biel-Tan Green","Athonian Camoshade","Casandora Yellow","Coelia Greenshade"],
+    "Contrast": ["Aggaros Dunes","Black Templar","Blood Angels Red","Space Wolves Grey","Ultramarines Blue","Talassar Blue","Gryph-hound Orange","Wyldwood","Iyanden Yellow","Skeleton Horde","Snakebite Leather","Militarum Green","Plaguebearer Flesh","Gore-Grunta Fur"],
+    "Technical": ["Nihilakh Oxide","Typhus Corrosion","Blood for the Blood God","Nurgle's Rot","Ryza Rust","Astrogranite","Agrellan Earth","Lahmian Medium"],
+    "Dry": ["Necron Compound","Administratum Grey","Ryza Rust","Stormhost Silver","Terminatus Stone","White Scar"]
+  },
+  "Army Painter": {
+    "Warpaints Fanatic": ["Matt Black","Matt White","Wolf Grey","Ash Grey","Uniform Grey","Gravel Grey","Skeleton Bone","Dungeon Grey","Ultramarine Blue","Crystal Blue","Electric Blue","Deep Blue","Frozen Sky","Blue Steel","Phoenix Blue","Army Green","Angel Green","Goblin Green","Troll Green","Greenskin","Poison Tongue","Moss Green","Leather Brown","Werewolf Fur","Wasteland Clay","Fur Brown","Uniform Brown","Terran Khaki","Daemonic Yellow","Desert Yellow","Lava Orange","Solar Orange","Pure Red","Dragon Red","Wild Rose Pink","Templar Rose","Monster Blood","Warlord Purple","Alien Purple","Necromancer Cloak","Barbarian Flesh","Necrotic Flesh","Exotic Skintone","Elf Skin","Tanned Flesh","Vampire Skin","Plate Mail Metal","Gun Metal","Greedy Gold","Weapon Bronze","Shining Silver","True Silver","Dwarven Bronze"],
+    "Fanatic Washes": ["Dark Tone","Strong Tone","Soft Tone","Military Shader","Red Tone","Blue Tone","Purple Tone","Sepia Tone","Flesh Wash"],
+    "Speedpaint": ["Dragon Red","Bloodsplatter","Molten Metal","Wolf Grey","Ash Grey","Cthulhu Purple","Herugrim Gold","Zealot Yellow","Blazing Sun","Goblin Green","Troll Green","Crocodile Scale","Skeleton Bone","Army Green","Dark Tone","Sapphire Blue","Warlord Purple","Necromancer Cloak"]
+  }
+};
+
+// Starter unit catalog (proof of concept). Names are the stable,
+// well-established datasheet names for these armies -- easy to
+// correct or expand later, just edit these arrays.
+const UNIT_CATALOG = {
+  "Space Marines": ["Captain","Chapter Master","Lieutenant","Librarian","Chaplain","Techmarine","Apothecary","Ancient","Company Champion","Terminator Squad","Tactical Squad","Intercessor Squad","Assault Intercessor Squad","Heavy Intercessor Squad","Sternguard Veteran Squad","Vanguard Veteran Squad","Scout Squad","Devastator Squad","Assault Squad","Bladeguard Veteran Squad","Infernus Squad","Eliminator Squad","Incursor Squad","Outrider Squad","Aggressor Squad","Inceptor Squad","Suppressor Squad","Hellblaster Squad","Eradicator Squad","Reiver Squad","Dreadnought","Redemptor Dreadnought","Leviathan Dreadnought","Brutalis Dreadnought","Ballistus Dreadnought","Land Speeder","Rhino","Razorback","Impulsor","Repulsor","Repulsor Executioner","Gladiator Lancer","Gladiator Reaper","Gladiator Valiant","Predator Annihilator","Predator Destructor","Vindicator","Whirlwind","Land Raider","Land Raider Crusader","Land Raider Redeemer","Storm Speeder Hailstrike","Storm Speeder Hammerstrike","Storm Speeder Thunderstrike","Thunderfire Cannon","Invictor Tactical Warsuit"],
+  "Orks": ["Warboss","Beastboss","Big Mek","Weirdboy","Painboy","Boyz","Gretchin","Nobz","Kommandos","Stormboyz","Meganobz","Tankbustas","Lootas","Burna Boyz","Flash Gitz","Deffkoptas","Warbikers","Trukk","Battlewagon","Gorkanaut","Morkanaut","Killa Kans","Deff Dread","Big Trakk","Mek Gunz","Squighog Boyz","Beast Snagga Boyz","Wazbom Blastajet"],
+  "Tyranids": ["Hive Tyrant","Broodlord","Tyranid Prime","Neurothrope","Zoanthropes","Termagants","Hormagaunts","Genestealers","Tyranid Warriors","Ravener Brood","Gargoyles","Carnifex","Tervigon","Tyrannofex","Exocrine","Biovores","Venomthropes","Lictor","Deathleaper","Pyrovores","Trygon","Mawloc","Hive Guard","Screamer-Killer","Von Ryan's Leapers","Sporocyst","Haruspex"],
+  "Necrons": ["Necron Overlord","Necron Lord","Royal Warden","Chronomancer","Cryptothralls","Necron Warriors","Immortals","Deathmarks","Lychguard","Triarch Praetorians","Flayed Ones","Canoptek Wraiths","Canoptek Scarab Swarms","Canoptek Spyders","Ophydian Destroyers","Skorpekh Destroyers","Tomb Blades","Doomstalker","Doom Scythe","Night Scythe","Monolith","Triarch Stalker","C'tan Shard of the Nightbringer","C'tan Shard of the Void Dragon","Plasmancer","Technomancer","Illuminor Szeras"]
+};
+
+// Space Marine chapters that get their own rules supplement (as opposed to
+// just being a paint scheme on the base Codex: Space Marines). Picking one
+// of these adds its special units on top of the standard Space Marines list.
+const SPACE_MARINE_CHAPTER_UNITS = {
+  "Blood Angels": ["Sanguinary Guard","Death Company Marines","Death Company Intercessors","Death Company Dreadnought","Sanguinary Priest","Chaplain with Jump Pack","Astorath","Lemartes","The Sanguinor","Mephiston","Commander Dante","Baal Predator","Furioso Dreadnought","Librarian Dreadnought","Sanguinary Ancient","Sanguinary Novitiate"],
+  "Dark Angels": ["Azrael","Belial","Sammael","Ezekiel","Asmodai","Deathwing Terminator Squad","Deathwing Knights","Deathwing Command Squad","Ravenwing Black Knights","Ravenwing Command Squad","Ravenwing Bikers","Interrogator-Chaplain","Nephilim Jetfighter","Land Speeder Vengeance"],
+  "Space Wolves": ["Logan Grimnar","Ragnar Blackmane","Njal Stormcaller","Bjorn the Fell-Handed","Wolf Lord","Wolf Guard Terminator Squad","Wolf Guard","Grey Hunters","Blood Claws","Long Fangs","Wulfen","Thunderwolf Cavalry","Iron Priest with Wolf Companions","Lone Wolf","Fenrisian Wolves"],
+  "Black Templars": ["Marshal","High Marshal Helbrecht","Chaplain Grimaldus","Emperor's Champion","Castellan","Sword Brethren","Primaris Crusader Squad","Champion of Sigismund"],
+  "Deathwatch": ["Watch Master","Watch Captain","Deathwatch Veteran Squad","Deathwatch Terminator Squad","Corvus Blackstar","Fortis Kill Team","Proteus Kill Team"]
+};
+
+let db;
+let units = [];
+let recipes = [];
+let currentUnitId = null;
+let currentRecipeId = null;
+let activeFilter = 'all';
+let viewMode = 'all';
+let currentView = 'units';
+
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open('hobbyTrackerDB', 2);
+    req.onupgradeneeded = (e)=>{
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('units')){
+        d.createObjectStore('units', {keyPath:'id'});
+      }
+      if(!d.objectStoreNames.contains('recipes')){
+        d.createObjectStore('recipes', {keyPath:'id'});
+      }
+    };
+    req.onsuccess = (e)=>{ db = e.target.result; resolve(); };
+    req.onerror = (e)=> reject(e);
+  });
+}
+
+function getAll(storeName){
+  return new Promise((resolve)=>{
+    const tx = db.transaction(storeName,'readonly');
+    const req = tx.objectStore(storeName).getAll();
+    req.onsuccess = ()=> resolve(req.result || []);
+    req.onerror = ()=> resolve([]);
+  });
+}
+function putItem(storeName, item){
+  return new Promise((resolve)=>{
+    const tx = db.transaction(storeName,'readwrite');
+    tx.objectStore(storeName).put(item);
+    tx.oncomplete = resolve;
+  });
+}
+function deleteItem(storeName, id){
+  return new Promise((resolve)=>{
+    const tx = db.transaction(storeName,'readwrite');
+    tx.objectStore(storeName).delete(id);
+    tx.oncomplete = resolve;
+  });
+}
+
+function uid(prefix){ return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function stageInfo(id){ return STAGES.find(s=>s.id===id) || STAGES[0]; }
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.innerText = str || '';
+  return d.innerHTML;
+}
+// Backward-compat helpers: older units only had a single "faction" field
+// (which was really being used like a chapter, e.g. "Ultramarines").
+// New units have separate "army" (catalog-driven) and "chapter" (free text) fields.
+function getChapter(u){ return (u.chapter !== undefined && u.chapter !== null && u.chapter !== '') ? u.chapter : (u.faction || ''); }
+function getArmy(u){ return u.army || ''; }
+// Broad allegiance grouping for the Faction view, derived automatically
+// from Army so there's no extra field for the user to manage.
+function getAllegiance(u){
+  const army = getArmy(u);
+  if(army === 'Space Marines') return 'Imperium';
+  if(army === 'Orks' || army === 'Tyranids' || army === 'Necrons') return 'Xenos';
+  if(!army) return 'Unassigned';
+  return 'Other';
+}
+
+// Attaches a normal tap and a press-and-hold (550ms) to a card element,
+// so units/recipes can be deleted straight from the grid without opening them.
+function makeCardInteractive(el, onTap, onLongPress){
+  let timer = null;
+  let longPressed = false;
+  const clearTimer = ()=>{ if(timer){ clearTimeout(timer); timer = null; } };
+  el.addEventListener('pointerdown', ()=>{
+    longPressed = false;
+    clearTimer();
+    timer = setTimeout(()=>{ longPressed = true; onLongPress(); }, 550);
+  });
+  el.addEventListener('pointerup', clearTimer);
+  el.addEventListener('pointerleave', clearTimer);
+  el.addEventListener('pointercancel', clearTimer);
+  el.addEventListener('contextmenu', (e)=> e.preventDefault());
+  el.addEventListener('click', ()=>{
+    if(longPressed){ longPressed = false; return; }
+    onTap();
+  });
+}
+
+/* ---------- Navigation ---------- */
+document.querySelectorAll('.bottom-tab-btn').forEach(btn=>{
+  btn.onclick = ()=> switchView(btn.dataset.view);
+});
+function switchView(view){
+  currentView = view;
+  document.querySelectorAll('.bottom-tab-btn').forEach(b=> b.classList.toggle('active', b.dataset.view===view));
+  document.querySelectorAll('.view').forEach(v=> v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.getElementById('addBtnBottom').style.visibility = view==='progress' ? 'hidden' : 'visible';
+  if(view==='recipes') renderRecipeList();
+  if(view==='progress') renderProgress();
+}
+document.getElementById('addBtnBottom').onclick = ()=>{
+  if(currentView==='recipes') openRecipeDetail(null);
+  else openDetail(null);
+};
+
+document.querySelectorAll('.seg-btn').forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll('.seg-btn').forEach(b=> b.classList.remove('active'));
+    btn.classList.add('active');
+    viewMode = btn.dataset.mode;
+    renderList();
+  };
+});
+
+
+
+/* ---------- Refresh ---------- */
+async function refreshAll(){
+  units = await getAll('units');
+  recipes = await getAll('recipes');
+  units.sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0));
+  recipes.sort((a,b)=> (b.updatedAt||0)-(a.updatedAt||0));
+  renderStageFilterSelect();
+  renderList();
+}
+
+/* ---------- Units list ---------- */
+function renderStageFilterSelect(){
+  const select = document.getElementById('stageFilterSelect');
+  const options = ['all', ...STAGES.map(s=>s.id)];
+  const labels = {all:'All stages'};
+  STAGES.forEach(s=> labels[s.id]=s.label);
+  select.innerHTML = options.map(o=>{
+    const count = o==='all' ? units.length : units.filter(u=>u.stage===o).length;
+    return `<option value="${o}" ${activeFilter===o?'selected':''}>${labels[o]} (${count})</option>`;
+  }).join('');
+  select.onchange = ()=>{
+    activeFilter = select.value;
+    select.parentElement.classList.toggle('active', activeFilter !== 'all');
+    renderList();
+  };
+  select.parentElement.classList.toggle('active', activeFilter !== 'all');
+}
+
+function renderUnitCard(u){
+  const s = stageInfo(u.stage);
+  const thumb = (u.photos && u.photos.length) ? `<img src="${u.photos[u.photos.length-1]}">` : '&#9876;&#65039;';
+  const sub = getChapter(u) || getArmy(u) || '';
+  return `<div class="unit-card" data-id="${u.id}">
+      <div class="unit-thumb">${thumb}</div>
+      <div class="unit-info">
+        <p class="unit-name">${escapeHtml(u.name || 'Unnamed unit')}</p>
+        <p class="unit-faction">${escapeHtml(sub || ' ')}</p>
+        <span class="stage-pill" style="background:${s.color}">${s.label}</span>
+      </div>
+    </div>`;
+}
+
+function renderInProgressCard(){
+  const area = document.getElementById('inProgressArea');
+  const u = units.find(x=>x.inProgress);
+  if(!u){ area.innerHTML=''; return; }
+  const idx = STAGES.findIndex(s=>s.id===u.stage);
+  const stageNum = idx>=0 ? idx+1 : 1;
+  const thumb = (u.photos && u.photos.length) ? `<img src="${u.photos[u.photos.length-1]}">` : '&#9876;&#65039;';
+  const sub = getChapter(u) || getArmy(u) || '';
+  area.innerHTML = `<div class="inprogress-card" id="inProgressCardEl">
+      <div class="inprogress-thumb">${thumb}</div>
+      <div class="inprogress-info">
+        <p class="inprogress-label">In progress</p>
+        <p class="inprogress-faction">${escapeHtml(sub || ' ')}</p>
+        <p class="inprogress-name">${escapeHtml(u.name || 'Unnamed unit')}</p>
+        <p class="inprogress-stage">Stage ${stageNum} of ${STAGES.length} &mdash; ${stageInfo(u.stage).label}</p>
+      </div>
+    </div>`;
+  document.getElementById('inProgressCardEl').onclick = ()=> openDetail(u.id);
+}
+
+function renderList(){
+  renderInProgressCard();
+
+  let filtered = units;
+  if(activeFilter !== 'all') filtered = filtered.filter(u=>u.stage===activeFilter);
+
+  const listArea = document.getElementById('listArea');
+  if(filtered.length === 0){
+    listArea.innerHTML = `<div class="empty-state"><div class="big">&#9876;&#65039;</div><p>${units.length===0 ? 'No units yet. Tap + to add your first unit.' : 'No units match this filter.'}</p></div>`;
+    return;
+  }
+
+  if(viewMode === 'all'){
+    listArea.innerHTML = `<div class="unit-grid">${filtered.map(u=>renderUnitCard(u)).join('')}</div>`;
+  } else {
+    // Faction view: group by broad allegiance, then by chapter (falls back to army)
+    const groups = {};
+    filtered.forEach(u=>{
+      const alle = getAllegiance(u);
+      const chapter = getChapter(u).trim();
+      const key = chapter || (getArmy(u).trim() || 'No chapter');
+      if(!groups[alle]) groups[alle] = {};
+      if(!groups[alle][key]) groups[alle][key] = [];
+      groups[alle][key].push(u);
+    });
+    const allegiancePriority = ['Imperium','Xenos','Other','Unassigned'];
+    const allegianceNames = Object.keys(groups).sort((a,b)=>{
+      const ai = allegiancePriority.indexOf(a), bi = allegiancePriority.indexOf(b);
+      return (ai===-1?99:ai) - (bi===-1?99:bi);
+    });
+
+    listArea.innerHTML = allegianceNames.map(alle=>{
+      const subGroups = groups[alle];
+      const subNames = Object.keys(subGroups).sort((a,b)=>{
+        if(a==='No chapter') return 1;
+        if(b==='No chapter') return -1;
+        return a.localeCompare(b);
+      });
+      const total = subNames.reduce((sum,sn)=> sum + subGroups[sn].length, 0);
+      return `<div class="allegiance-section">
+        <p class="allegiance-header">${escapeHtml(alle)} <span class="allegiance-count">(${total})</span></p>
+        ${subNames.map(sn=>{
+          const list = subGroups[sn];
+          return `<div class="faction-section">
+            <p class="faction-header">${escapeHtml(sn)} <span class="faction-count">(${list.length})</span></p>
+            <div class="unit-grid">${list.map(u=>renderUnitCard(u)).join('')}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('');
+  }
+
+  document.querySelectorAll('.unit-card').forEach(el=>{
+    makeCardInteractive(el, ()=> openDetail(el.dataset.id), ()=> confirmDeleteUnitCard(el.dataset.id));
+  });
+}
+
+async function performDeleteUnit(id){
+  await deleteItem('units', id);
+  await refreshAll();
+}
+
+async function confirmDeleteUnitCard(id){
+  const u = units.find(x=>x.id===id);
+  if(!u) return;
+  if(confirm(`Delete "${u.name || 'this unit'}"? This removes its photos too.`)){
+    await performDeleteUnit(id);
+  }
+}
+
+/* ---------- Unit detail ---------- */
+let currentEditStage = 'bought';
+let currentEditPhotos = [];
+let currentEditPinnedRecipes = [];
+let currentEditPinned = false;
+
+function renderStageRow(selected){
+  document.getElementById('stageRow').innerHTML = STAGES.map(s=>
+    `<div class="stage-btn ${s.id===selected?'active':''}" data-stage="${s.id}" style="${s.id===selected?'background:'+s.color+';border-color:'+s.color:''}">${s.label}</div>`
+  ).join('');
+  document.querySelectorAll('.stage-btn').forEach(el=>{
+    el.onclick = ()=>{
+      document.querySelectorAll('.stage-btn').forEach(b=>{ b.classList.remove('active'); b.style.background=''; b.style.borderColor=''; });
+      el.classList.add('active');
+      const s = stageInfo(el.dataset.stage);
+      el.style.background = s.color;
+      el.style.borderColor = s.color;
+      currentEditStage = el.dataset.stage;
+    };
+  });
+}
+
+function renderPhotoStrip(containerId, photos, inputId){
+  const strip = document.getElementById(containerId);
+  let html = photos.map((p,i)=>
+    `<div class="photo-item" data-idx="${i}"><img src="${p}"><button class="photo-del" data-idx="${i}">&times;</button></div>`
+  ).join('');
+  const limit = containerId==='recipePhotoStrip' ? 1 : MAX_PHOTOS;
+  if(photos.length < limit){
+    html += `<div class="add-photo" id="addBtn_${containerId}">+</div>`;
+  }
+  strip.innerHTML = html;
+  const addBtn = document.getElementById('addBtn_'+containerId);
+  if(addBtn) addBtn.onclick = ()=> document.getElementById(inputId).click();
+  strip.querySelectorAll('.photo-del').forEach(el=>{
+    el.onclick = (e)=>{
+      e.stopPropagation();
+      photos.splice(parseInt(el.dataset.idx),1);
+      renderPhotoStrip(containerId, photos, inputId);
+    };
+  });
+  strip.querySelectorAll('.photo-item img').forEach((img,i)=>{
+    img.onclick = ()=> openLightbox(photos[i]);
+  });
+}
+
+function updatePinButton(){
+  const btn = document.getElementById('pinInProgressBtn');
+  if(currentEditPinned){
+    btn.textContent = '\u2605 Pinned as In Progress \u2014 tap to unpin';
+    btn.classList.add('primary');
+  } else {
+    btn.textContent = '\u{1F4CC} Pin as In Progress';
+    btn.classList.remove('primary');
+  }
+}
+document.getElementById('pinInProgressBtn').onclick = ()=>{
+  currentEditPinned = !currentEditPinned;
+  updatePinButton();
+};
+
+function openLightbox(src){
+  document.getElementById('lbImg').src = src;
+  document.getElementById('lightbox').style.display = 'flex';
+}
+document.getElementById('lbClose').onclick = ()=> document.getElementById('lightbox').style.display='none';
+document.getElementById('lightbox').onclick = (e)=>{ if(e.target.id==='lightbox') e.target.style.display='none'; };
+
+function compressImage(file){
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const maxDim = 900;
+        let w = img.width, h = img.height;
+        if(w > h && w > maxDim){ h = h*(maxDim/w); w = maxDim; }
+        else if(h > maxDim){ w = w*(maxDim/h); h = maxDim; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('photoInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const dataUrl = await compressImage(file);
+  currentEditPhotos.push(dataUrl);
+  if(currentEditPhotos.length > MAX_PHOTOS) currentEditPhotos = currentEditPhotos.slice(-MAX_PHOTOS);
+  renderPhotoStrip('photoStrip', currentEditPhotos, 'photoInput');
+  e.target.value = '';
+});
+
+function renderRecipePinRowForUnit(){
+  const row = document.getElementById('recipePinRow');
+  if(recipes.length === 0){
+    row.innerHTML = `<p style="font-size:13px; color:var(--text-secondary); margin:0;">No recipes yet — create one in the Paint recipes tab.</p>`;
+    return;
+  }
+  row.innerHTML = recipes.map(r=>
+    `<div class="pin-chip ${currentEditPinnedRecipes.includes(r.id)?'active':''}" data-id="${r.id}">${escapeHtml(r.name||'Untitled recipe')}</div>`
+  ).join('');
+  row.querySelectorAll('.pin-chip').forEach(el=>{
+    el.onclick = ()=>{
+      const id = el.dataset.id;
+      if(currentEditPinnedRecipes.includes(id)){
+        currentEditPinnedRecipes = currentEditPinnedRecipes.filter(x=>x!==id);
+      } else {
+        currentEditPinnedRecipes.push(id);
+      }
+      el.classList.toggle('active');
+      renderPinnedRecipesPreview();
+    };
+  });
+}
+function renderPinnedRecipesPreview(){
+  const area = document.getElementById('pinnedRecipesArea');
+  if(currentEditPinnedRecipes.length===0){
+    area.innerHTML = `<p style="font-size:13px; color:var(--text-secondary); margin:0;">No recipes pinned yet.</p>`;
+    return;
+  }
+  area.innerHTML = currentEditPinnedRecipes.map(id=>{
+    const r = recipes.find(x=>x.id===id);
+    return r ? `<span class="recipe-link-tag">&#127912; ${escapeHtml(r.name||'Untitled')}</span>` : '';
+  }).join('');
+}
+
+/* ---------- Army field + chapter field + unit catalog picker ---------- */
+function setupArmyFields(unit){
+  const armySelect = document.getElementById('armySelect');
+  const customInput = document.getElementById('customArmyInput');
+  const chapterWrapper = document.getElementById('chapterFieldWrapper');
+  const chapterSelect = document.getElementById('chapterSelect');
+  const catalogUnitSelect = document.getElementById('catalogUnitSelect');
+  const catalogArmies = Object.keys(UNIT_CATALOG);
+
+  armySelect.innerHTML = `<option value="">Choose army...</option>` +
+    catalogArmies.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('') +
+    `<option value="__other__">Other / not listed</option>`;
+
+  const currentArmy = getArmy(unit);
+  if(currentArmy && !catalogArmies.includes(currentArmy)){
+    armySelect.value = '__other__';
+    customInput.value = currentArmy;
+    customInput.style.display = 'block';
+  } else {
+    armySelect.value = currentArmy;
+    customInput.value = '';
+    customInput.style.display = 'none';
+  }
+
+  function isSpaceMarines(){ return armySelect.value === 'Space Marines'; }
+
+  const currentChapter = getChapter(unit);
+  chapterWrapper.style.display = isSpaceMarines() ? 'block' : 'none';
+  chapterSelect.value = (isSpaceMarines() && SPACE_MARINE_CHAPTER_UNITS[currentChapter]) ? currentChapter : '';
+
+  function refreshUnitCatalogOptions(){
+    const army = armySelect.value;
+    let list = [];
+    if(isSpaceMarines()){
+      list = UNIT_CATALOG['Space Marines'].slice();
+      const chapter = chapterSelect.value;
+      if(chapter && SPACE_MARINE_CHAPTER_UNITS[chapter]) list = list.concat(SPACE_MARINE_CHAPTER_UNITS[chapter]);
+    } else if(army && army !== '__other__' && UNIT_CATALOG[army]){
+      list = UNIT_CATALOG[army].slice();
+    }
+    if(list.length){
+      catalogUnitSelect.disabled = false;
+      catalogUnitSelect.innerHTML = `<option value="">Pick from catalog (optional)...</option>` +
+        list.map(u=>`<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+    } else {
+      catalogUnitSelect.disabled = true;
+      catalogUnitSelect.innerHTML = `<option value="">Pick from catalog (optional)...</option>`;
+    }
+  }
+  refreshUnitCatalogOptions();
+
+  armySelect.onchange = ()=>{
+    customInput.style.display = armySelect.value === '__other__' ? 'block' : 'none';
+    if(armySelect.value !== '__other__') customInput.value = '';
+    chapterWrapper.style.display = isSpaceMarines() ? 'block' : 'none';
+    if(!isSpaceMarines()) chapterSelect.value = '';
+    refreshUnitCatalogOptions();
+  };
+
+  chapterSelect.onchange = refreshUnitCatalogOptions;
+
+  catalogUnitSelect.onchange = ()=>{
+    if(catalogUnitSelect.value) document.getElementById('nameInput').value = catalogUnitSelect.value;
+  };
+}
+
+function openDetail(id){
+  currentUnitId = id;
+  let unit;
+  if(id){
+    unit = units.find(u=>u.id===id);
+  } else {
+    unit = {id:uid('unit'), name:'', army:'', chapter:'', stage:'bought', notes:'', photos:[], pinnedRecipes:[], inProgress:false, updatedAt:Date.now()};
+  }
+  document.getElementById('detailTitle').textContent = id ? 'Edit unit' : 'New unit';
+  document.getElementById('nameInput').value = unit.name || '';
+  document.getElementById('notesInput').value = unit.notes || '';
+  currentEditStage = unit.stage || 'bought';
+  currentEditPhotos = (unit.photos || []).slice();
+  currentEditPinnedRecipes = (unit.pinnedRecipes || []).slice();
+  currentEditPinned = !!unit.inProgress;
+  updatePinButton();
+  renderStageRow(currentEditStage);
+  renderPhotoStrip('photoStrip', currentEditPhotos, 'photoInput');
+  renderPinnedRecipesPreview();
+  renderRecipePinRowForUnit();
+  setupArmyFields(unit);
+  document.getElementById('deleteUnitBtn').style.visibility = id ? 'visible' : 'hidden';
+  document.getElementById('detailScreen').classList.add('open');
+}
+function closeDetail(){
+  document.getElementById('detailScreen').classList.remove('open');
+  currentUnitId = null;
+}
+document.getElementById('backBtn').onclick = closeDetail;
+
+document.getElementById('saveUnitBtn').onclick = async ()=>{
+  const name = document.getElementById('nameInput').value.trim();
+  if(!name){ document.getElementById('nameInput').focus(); return; }
+  const armySelect = document.getElementById('armySelect');
+  const customArmyInput = document.getElementById('customArmyInput');
+  const chapterSelect = document.getElementById('chapterSelect');
+  const army = armySelect.value === '__other__' ? customArmyInput.value.trim() : armySelect.value;
+  const chapter = (army === 'Space Marines') ? chapterSelect.value : '';
+  const unitId = currentUnitId || uid('unit');
+  const unit = {
+    id: unitId,
+    name,
+    army,
+    chapter,
+    notes: document.getElementById('notesInput').value.trim(),
+    stage: currentEditStage,
+    photos: currentEditPhotos,
+    pinnedRecipes: currentEditPinnedRecipes,
+    inProgress: currentEditPinned,
+    updatedAt: Date.now()
+  };
+  if(currentEditPinned){
+    // Only one unit can be the In Progress spotlight at a time
+    for(const u of units){
+      if(u.id !== unitId && u.inProgress){
+        u.inProgress = false;
+        await putItem('units', u);
+      }
+    }
+  }
+  await putItem('units', unit);
+  closeDetail();
+  await refreshAll();
+};
+document.getElementById('deleteUnitBtn').onclick = async ()=>{
+  if(!currentUnitId) return;
+  if(confirm('Delete this unit and all its photos?')){
+    await performDeleteUnit(currentUnitId);
+    closeDetail();
+  }
+};
+
+/* ---------- Recipes list ---------- */
+function renderRecipeList(){
+  const area = document.getElementById('recipeListArea');
+  if(recipes.length === 0){
+    area.innerHTML = `<div class="empty-state"><div class="big">&#127912;</div><p>No paint recipes yet. Tap + to save how you painted something so you never forget.</p></div>`;
+    return;
+  }
+  area.innerHTML = recipes.map(r=>{
+    const thumb = r.photo ? `<img src="${r.photo}">` : '&#127912;';
+    const pinnedCount = (r.pinnedUnits||[]).length;
+    return `<div class="recipe-card" data-id="${r.id}">
+      <div class="recipe-thumb">${thumb}</div>
+      <div>
+        <p class="recipe-name">${escapeHtml(r.name||'Untitled recipe')}</p>
+        <p class="recipe-meta">${(r.steps||[]).length} step${(r.steps||[]).length===1?'':'s'} &middot; pinned to ${pinnedCount} unit${pinnedCount===1?'':'s'}</p>
+      </div>
+    </div>`;
+  }).join('');
+  area.querySelectorAll('.recipe-card').forEach(el=>{
+    makeCardInteractive(el, ()=> openRecipeDetail(el.dataset.id), ()=> confirmDeleteRecipeCard(el.dataset.id));
+  });
+}
+
+async function performDeleteRecipe(id){
+  await deleteItem('recipes', id);
+  const allUnits = await getAll('units');
+  for(const u of allUnits){
+    if((u.pinnedRecipes||[]).includes(id)){
+      u.pinnedRecipes = u.pinnedRecipes.filter(x=>x!==id);
+      await putItem('units', u);
+    }
+  }
+  await refreshAll();
+  renderRecipeList();
+}
+
+async function confirmDeleteRecipeCard(id){
+  const r = recipes.find(x=>x.id===id);
+  if(!r) return;
+  if(confirm(`Delete "${r.name || 'this recipe'}"?`)){
+    await performDeleteRecipe(id);
+  }
+}
+
+/* ---------- Recipe detail ---------- */
+let currentEditRecipePhoto = [];
+let currentEditSteps = [];
+let currentEditPinnedUnits = [];
+
+function renderSteps(){
+  const area = document.getElementById('stepsArea');
+  if(currentEditSteps.length===0){
+    area.innerHTML = `<p style="font-size:13px; color:var(--text-secondary); margin:0 0 12px;">No steps yet.</p>`;
+    return;
+  }
+  const brands = Object.keys(PAINT_CATALOG);
+  area.innerHTML = currentEditSteps.map((s,i)=>`
+    <div class="step-card" data-idx="${i}">
+      <div class="step-head"><span>Step ${i+1}</span><button class="step-del" data-idx="${i}">&times;</button></div>
+      <p class="paint-picker-hint">Pick from the catalog, or just type your own paint below.</p>
+      <div class="paint-picker-row">
+        <select class="step-brand" data-idx="${i}">
+          <option value="">Brand...</option>
+          ${brands.map(b=>`<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')}
+        </select>
+        <select class="step-line" data-idx="${i}" disabled><option value="">Line...</option></select>
+      </div>
+      <select class="step-paint-select" data-idx="${i}" disabled><option value="">Paint...</option></select>
+      <input type="text" class="step-paint" data-idx="${i}" placeholder="Paint name (e.g. Citadel Macragge Blue)" value="${escapeHtml(s.paint)}">
+      <input type="text" class="step-note" data-idx="${i}" placeholder="Technique (e.g. basecoat, drybrush, wash)" value="${escapeHtml(s.note)}">
+    </div>
+  `).join('');
+
+  area.querySelectorAll('.step-del').forEach(el=>{
+    el.onclick = ()=>{ currentEditSteps.splice(parseInt(el.dataset.idx),1); renderSteps(); };
+  });
+  area.querySelectorAll('.step-paint').forEach(el=>{
+    el.oninput = ()=> currentEditSteps[parseInt(el.dataset.idx)].paint = el.value;
+  });
+  area.querySelectorAll('.step-note').forEach(el=>{
+    el.oninput = ()=> currentEditSteps[parseInt(el.dataset.idx)].note = el.value;
+  });
+  area.querySelectorAll('.step-brand').forEach(el=>{
+    el.onchange = ()=>{
+      const idx = el.dataset.idx;
+      const lineSelect = area.querySelector(`.step-line[data-idx="${idx}"]`);
+      const paintSelect = area.querySelector(`.step-paint-select[data-idx="${idx}"]`);
+      const brand = el.value;
+      paintSelect.innerHTML = `<option value="">Paint...</option>`;
+      paintSelect.disabled = true;
+      if(!brand){
+        lineSelect.innerHTML = `<option value="">Line...</option>`;
+        lineSelect.disabled = true;
+        return;
+      }
+      const lines = Object.keys(PAINT_CATALOG[brand]);
+      lineSelect.disabled = false;
+      lineSelect.innerHTML = `<option value="">Line...</option>` +
+        lines.map(l=>`<option value="${escapeHtml(l)}">${escapeHtml(brand)} ${escapeHtml(l)}</option>`).join('');
+    };
+  });
+  area.querySelectorAll('.step-line').forEach(el=>{
+    el.onchange = ()=>{
+      const idx = el.dataset.idx;
+      const brandSelect = area.querySelector(`.step-brand[data-idx="${idx}"]`);
+      const paintSelect = area.querySelector(`.step-paint-select[data-idx="${idx}"]`);
+      const brand = brandSelect.value;
+      const line = el.value;
+      if(!brand || !line){
+        paintSelect.innerHTML = `<option value="">Paint...</option>`;
+        paintSelect.disabled = true;
+        return;
+      }
+      const paints = PAINT_CATALOG[brand][line];
+      paintSelect.disabled = false;
+      paintSelect.innerHTML = `<option value="">Paint...</option>` +
+        paints.map(p=>`<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+    };
+  });
+  area.querySelectorAll('.step-paint-select').forEach(el=>{
+    el.onchange = ()=>{
+      if(!el.value) return;
+      const idx = parseInt(el.dataset.idx);
+      currentEditSteps[idx].paint = el.value;
+      area.querySelector(`.step-paint[data-idx="${idx}"]`).value = el.value;
+    };
+  });
+}
+document.getElementById('addStepBtn').onclick = ()=>{
+  currentEditSteps.push({paint:'', note:''});
+  renderSteps();
+};
+
+document.getElementById('recipePhotoInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const dataUrl = await compressImage(file);
+  currentEditRecipePhoto = [dataUrl];
+  renderPhotoStrip('recipePhotoStrip', currentEditRecipePhoto, 'recipePhotoInput');
+  e.target.value = '';
+});
+
+function renderUnitPinRow(){
+  const row = document.getElementById('unitPinRow');
+  if(units.length===0){
+    row.innerHTML = `<p style="font-size:13px; color:var(--text-secondary); margin:0;">No units yet to pin this to.</p>`;
+    return;
+  }
+  row.innerHTML = units.map(u=>
+    `<div class="pin-chip ${currentEditPinnedUnits.includes(u.id)?'active':''}" data-id="${u.id}">${escapeHtml(u.name||'Unnamed')}</div>`
+  ).join('');
+  row.querySelectorAll('.pin-chip').forEach(el=>{
+    el.onclick = ()=>{
+      const id = el.dataset.id;
+      if(currentEditPinnedUnits.includes(id)) currentEditPinnedUnits = currentEditPinnedUnits.filter(x=>x!==id);
+      else currentEditPinnedUnits.push(id);
+      el.classList.toggle('active');
+    };
+  });
+}
+
+function openRecipeDetail(id){
+  currentRecipeId = id;
+  let recipe;
+  if(id){
+    recipe = recipes.find(r=>r.id===id);
+  } else {
+    recipe = {id:uid('recipe'), name:'', photo:null, steps:[], pinnedUnits:[], updatedAt:Date.now()};
+  }
+  document.getElementById('recipeTitle').textContent = id ? 'Edit recipe' : 'New recipe';
+  document.getElementById('recipeNameInput').value = recipe.name || '';
+  currentEditRecipePhoto = recipe.photo ? [recipe.photo] : [];
+  currentEditSteps = (recipe.steps || []).map(s=>({paint:s.paint||'', note:s.note||''}));
+  currentEditPinnedUnits = (recipe.pinnedUnits || []).slice();
+  renderPhotoStrip('recipePhotoStrip', currentEditRecipePhoto, 'recipePhotoInput');
+  renderSteps();
+  renderUnitPinRow();
+  document.getElementById('deleteRecipeBtn').style.visibility = id ? 'visible' : 'hidden';
+  document.getElementById('recipeScreen').classList.add('open');
+}
+function closeRecipeDetail(){
+  document.getElementById('recipeScreen').classList.remove('open');
+  currentRecipeId = null;
+}
+document.getElementById('recipeBackBtn').onclick = closeRecipeDetail;
+
+document.getElementById('saveRecipeBtn').onclick = async ()=>{
+  const name = document.getElementById('recipeNameInput').value.trim();
+  if(!name){ document.getElementById('recipeNameInput').focus(); return; }
+  const recipe = {
+    id: currentRecipeId || uid('recipe'),
+    name,
+    photo: currentEditRecipePhoto[0] || null,
+    steps: currentEditSteps.filter(s=> s.paint.trim() || s.note.trim()),
+    pinnedUnits: currentEditPinnedUnits,
+    updatedAt: Date.now()
+  };
+  await putItem('recipes', recipe);
+
+  // sync pinnedRecipes on units
+  const allUnits = await getAll('units');
+  for(const u of allUnits){
+    const has = (u.pinnedRecipes||[]).includes(recipe.id);
+    const should = recipe.pinnedUnits.includes(u.id);
+    if(has && !should){
+      u.pinnedRecipes = u.pinnedRecipes.filter(x=>x!==recipe.id);
+      await putItem('units', u);
+    } else if(!has && should){
+      u.pinnedRecipes = [...(u.pinnedRecipes||[]), recipe.id];
+      await putItem('units', u);
+    }
+  }
+
+  closeRecipeDetail();
+  await refreshAll();
+  renderRecipeList();
+};
+document.getElementById('deleteRecipeBtn').onclick = async ()=>{
+  if(!currentRecipeId) return;
+  if(confirm('Delete this recipe?')){
+    await performDeleteRecipe(currentRecipeId);
+    closeRecipeDetail();
+  }
+};
+
+/* ---------- Progress overview ---------- */
+function renderProgress(){
+  const area = document.getElementById('progressArea');
+  const total = units.length;
+  const finishedCount = units.filter(u=>u.stage==='finished').length;
+  const inProgressCount = total - finishedCount - units.filter(u=>u.stage==='bought').length;
+  const pct = total ? Math.round((finishedCount/total)*100) : 0;
+
+  let html = `<div class="progress-summary">
+    <div class="summary-card"><p class="summary-num">${total}</p><p class="summary-label">Total units</p></div>
+    <div class="summary-card"><p class="summary-num">${finishedCount}</p><p class="summary-label">Finished</p></div>
+    <div class="summary-card"><p class="summary-num">${pct}%</p><p class="summary-label">Collection finished</p></div>
+    <div class="summary-card"><p class="summary-num">${inProgressCount}</p><p class="summary-label">In progress</p></div>
+  </div>`;
+
+  html += `<label class="field-label" style="margin-top:0;">Breakdown by stage</label>`;
+  STAGES.forEach(s=>{
+    const count = units.filter(u=>u.stage===s.id).length;
+    const barPct = total ? (count/total)*100 : 0;
+    html += `<div class="bar-row">
+      <div class="bar-label">${s.label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${barPct}%; background:${s.color}"></div></div>
+      <div class="bar-count">${count}</div>
+    </div>`;
+  });
+
+  if(total === 0){
+    html += `<div class="empty-state"><div class="big">&#128202;</div><p>Add some units to see your progress here.</p></div>`;
+  }
+
+  area.innerHTML = html;
+}
+
+(async function init(){
+  await openDB();
+  await refreshAll();
+})();
+</script>
+</body>
+</html>
