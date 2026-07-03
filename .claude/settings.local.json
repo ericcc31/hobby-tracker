@@ -29,7 +29,19 @@
       "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); npx --yes create-expo-app@latest --help 2>&1 | Out-String -Width 200)",
       "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); cd \"C:\\\\Claude\\\\Code\"; npx --yes create-expo-app@latest wet-palette-tmp --yes --no-agents-md --no-install 2>&1 | Out-String -Width 200)",
       "PowerShell($src = \"C:\\\\Claude\\\\Code\\\\wet-palette-tmp\"; $dst = \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\"; $items = Get-ChildItem $src -Force | Where-Object { $_.Name -ne \".git\" }; foreach \\($item in $items\\) { Move-Item -Path $item.FullName -Destination $dst -Force }; Remove-Item $src -Recurse -Force; Get-ChildItem $dst -Force | Select-Object Name)",
-      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); cd \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\"; npm install 2>&1 | Out-String -Width 200)"
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); cd \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\"; npm install 2>&1 | Out-String -Width 200)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); cd \"C:\\\\Claude\\\\Code\\\\Hobby Tracker\"; npx expo start > expo-start.log 2>&1)",
+      "PowerShell(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Id 3928,21276 -Force -ErrorAction SilentlyContinue)",
+      "Bash(curl -s http://localhost:8081/status)",
+      "Bash(curl -s http://localhost:8081/)",
+      "PowerShell(Get-NetConnectionProfile)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "WebFetch(domain:api.expo.dev)",
+      "Bash(powershell.exe -NoProfile -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(rm -rf \"/c/Claude/Code/wet-palette-tmp\")",
+      "Read(//c/Claude/Code//**)"
     ]
   }
 }
