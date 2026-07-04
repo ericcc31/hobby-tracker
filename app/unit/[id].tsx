@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { UnitForm } from '@/components/unit-form';
+import { UnitPhotos } from '@/components/unit-photos';
 import { Colors } from '@/constants/theme';
 import { deleteUnit, getPinnedRecipeIds, getUnit, setInProgress, setPinnedRecipes, Unit, updateUnit } from '@/db/units';
 
@@ -36,6 +37,7 @@ export default function EditUnitScreen() {
       initialValues={unit}
       initialPinnedRecipeIds={pinnedIds}
       initialInProgress={unit.inProgress}
+      photosSection={<UnitPhotos unitId={unitId} />}
       submitLabel="Save Changes"
       onSubmit={async (input, pinnedRecipeIds, inProgress) => {
         await updateUnit(unitId, input);

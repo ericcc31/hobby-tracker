@@ -2,17 +2,24 @@ import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { PickerModal } from '@/components/picker-modal';
 import { StagePill } from '@/components/stage-pill';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { isSpaceMarines, SPACE_MARINE_CHAPTERS } from '@/constants/chapters';
+import { FACTIONS, isSpaceMarines, SPACE_MARINE_CHAPTERS } from '@/constants/factions';
 import { Colors, Stage, Stages } from '@/constants/theme';
 import { listRecipes, Recipe } from '@/db/recipes';
 import { Unit, UnitInput } from '@/db/units';
+
+const FACTION_SECTIONS = Object.entries(FACTIONS).map(([allegiance, items]) => ({
+  title: allegiance,
+  items,
+}));
 
 export function UnitForm({
   initialValues,
   initialPinnedRecipeIds = [],
   initialInProgress = false,
+  photosSection,
   submitLabel,
   onSubmit,
   onDelete,
@@ -20,6 +27,7 @@ export function UnitForm({
   initialValues?: Unit;
   initialPinnedRecipeIds?: number[];
   initialInProgress?: boolean;
+  photosSection?: React.ReactNode;
   submitLabel: string;
   onSubmit: (input: UnitInput, pinnedRecipeIds: number[], inProgress: boolean) => Promise<void>;
   onDelete?: () => Promise<void>;
@@ -33,6 +41,7 @@ export function UnitForm({
   const [pinnedRecipeIds, setPinnedRecipeIds] = useState<number[]>(initialPinnedRecipeIds);
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [saving, setSaving] = useState(false);
+  const [factionPickerVisible, setFactionPickerVisible] = useState(false);
 
   useEffect(() => {
     listRecipes().then(setAllRecipes);
@@ -90,16 +99,28 @@ export function UnitForm({
         placeholderTextColor={Colors.textSecondary}
       />
 
+      {photosSection ?? (
+        <View style={styles.photosHint}>
+          <Text style={styles.photosHintLabel}>Save this unit to start adding stage photos.</Text>
+        </View>
+      )}
+
       <Text style={styles.label}>Army</Text>
-      <TextInput
-        style={styles.input}
-        value={army}
-        onChangeText={(text) => {
-          setArmy(text);
-          if (!isSpaceMarines(text)) setChapter(null);
+      <Pressable style={styles.input} onPress={() => setFactionPickerVisible(true)}>
+        <Text style={army ? styles.inputValue : styles.inputPlaceholder}>{army || 'Choose an army'}</Text>
+      </Pressable>
+      <PickerModal
+        visible={factionPickerVisible}
+        title="Choose Army"
+        sections={FACTION_SECTIONS}
+        searchable
+        allowCustom
+        onClose={() => setFactionPickerVisible(false)}
+        onSelect={(value) => {
+          setArmy(value);
+          if (!isSpaceMarines(value)) setChapter(null);
+          setFactionPickerVisible(false);
         }}
-        placeholder="e.g. Space Marines"
-        placeholderTextColor={Colors.textSecondary}
       />
 
       {showChapterPicker && (
@@ -214,6 +235,28 @@ const styles = StyleSheet.create({
   notesInput: {
     minHeight: 90,
     textAlignVertical: 'top',
+  },
+  inputValue: {
+    color: Colors.text,
+    fontSize: 15,
+  },
+  inputPlaceholder: {
+    color: Colors.textSecondary,
+    fontSize: 15,
+  },
+  photosHint: {
+    marginTop: 18,
+    padding: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+  },
+  photosHintLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    textAlign: 'center',
   },
   wrapRow: {
     flexDirection: 'row',

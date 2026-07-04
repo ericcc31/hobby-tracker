@@ -1,6 +1,7 @@
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
@@ -9,7 +10,7 @@ import { Fab } from '@/components/fab';
 import { SectionHeader } from '@/components/section-header';
 import { StagePill } from '@/components/stage-pill';
 import { Colors, Stage, StageLabels, Stages } from '@/constants/theme';
-import { listUnits, Unit } from '@/db/units';
+import { deleteUnit, listUnits, Unit } from '@/db/units';
 
 export default function UnitsScreen() {
   const insets = useSafeAreaInsets();
@@ -18,11 +19,27 @@ export default function UnitsScreen() {
   const [viewMode, setViewMode] = useState<'all' | 'faction'>('all');
   const [stageFilter, setStageFilter] = useState<Stage | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      listUnits().then(setUnits);
-    }, [])
-  );
+  const refresh = useCallback(() => {
+    listUnits().then(setUnits);
+  }, []);
+
+  useFocusEffect(refresh);
+
+  function handleLongPress(unit: Unit) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(unit.name, undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          await deleteUnit(unit.id);
+          refresh();
+        },
+      },
+    ]);
+  }
 
   const spotlight = units.find((u) => u.inProgress);
 
@@ -100,13 +117,13 @@ export default function UnitsScreen() {
         ) : viewMode === 'all' ? (
           <>
             <SectionHeader title="All units" subtitle={`${filtered.length}`} />
-            <UnitGrid units={filtered} onPress={openUnit} />
+            <UnitGrid units={filtered} onPress={openUnit} onLongPress={handleLongPress} />
           </>
         ) : (
           Object.entries(grouped).map(([chapter, chapterUnits]) => (
             <View key={chapter}>
               <SectionHeader title={chapter} subtitle={`${chapterUnits.length}`} />
-              <UnitGrid units={chapterUnits} onPress={openUnit} />
+              <UnitGrid units={chapterUnits} onPress={openUnit} onLongPress={handleLongPress} />
             </View>
           ))
         )}
@@ -116,11 +133,23 @@ export default function UnitsScreen() {
   );
 }
 
-function UnitGrid({ units, onPress }: { units: Unit[]; onPress: (id: number) => void }) {
+function UnitGrid({
+  units,
+  onPress,
+  onLongPress,
+}: {
+  units: Unit[];
+  onPress: (id: number) => void;
+  onLongPress: (unit: Unit) => void;
+}) {
   return (
     <View style={styles.grid}>
       {units.map((unit) => (
-        <Pressable key={unit.id} onPress={() => onPress(unit.id)} style={styles.unitCardWrapper}>
+        <Pressable
+          key={unit.id}
+          onPress={() => onPress(unit.id)}
+          onLongPress={() => onLongPress(unit)}
+          style={styles.unitCardWrapper}>
           <Card style={styles.unitCard}>
             <View style={styles.unitThumb} />
             <Text style={styles.unitName} numberOfLines={1}>

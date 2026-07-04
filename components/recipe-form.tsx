@@ -2,10 +2,17 @@ import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { PickerModal } from '@/components/picker-modal';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { PAINT_CATALOG } from '@/constants/paints';
 import { Colors } from '@/constants/theme';
 import { listUnits, Unit } from '@/db/units';
 import { Recipe, RecipeInput, RecipeStep } from '@/db/recipes';
+
+const PAINT_SECTIONS = PAINT_CATALOG.map((range) => ({
+  title: `${range.brand} – ${range.range}`,
+  items: range.paints,
+}));
 
 export function RecipeForm({
   initialValues,
@@ -27,6 +34,7 @@ export function RecipeForm({
   const [pinnedUnitIds, setPinnedUnitIds] = useState<number[]>(initialPinnedUnitIds);
   const [allUnits, setAllUnits] = useState<Unit[]>([]);
   const [saving, setSaving] = useState(false);
+  const [paintPickerIndex, setPaintPickerIndex] = useState<number | null>(null);
 
   useEffect(() => {
     listUnits().then(setAllUnits);
@@ -101,13 +109,11 @@ export function RecipeForm({
       {steps.map((step, index) => (
         <View key={index} style={styles.stepRow}>
           <View style={styles.stepFields}>
-            <TextInput
-              style={styles.input}
-              value={step.paintName}
-              onChangeText={(v) => updateStep(index, 'paintName', v)}
-              placeholder="Paint name"
-              placeholderTextColor={Colors.textSecondary}
-            />
+            <Pressable style={styles.input} onPress={() => setPaintPickerIndex(index)}>
+              <Text style={step.paintName ? styles.inputValue : styles.inputPlaceholder}>
+                {step.paintName || 'Choose a paint'}
+              </Text>
+            </Pressable>
             <TextInput
               style={[styles.input, styles.techniqueInput]}
               value={step.technique}
@@ -161,6 +167,19 @@ export function RecipeForm({
           <Text style={styles.deleteButtonLabel}>Delete Recipe</Text>
         </Pressable>
       )}
+
+      <PickerModal
+        visible={paintPickerIndex !== null}
+        title="Choose Paint"
+        sections={PAINT_SECTIONS}
+        searchable
+        allowCustom
+        onClose={() => setPaintPickerIndex(null)}
+        onSelect={(value) => {
+          if (paintPickerIndex !== null) updateStep(paintPickerIndex, 'paintName', value);
+          setPaintPickerIndex(null);
+        }}
+      />
     </ScrollView>
   );
 }
@@ -191,6 +210,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     color: Colors.text,
+    fontSize: 15,
+  },
+  inputValue: {
+    color: Colors.text,
+    fontSize: 15,
+  },
+  inputPlaceholder: {
+    color: Colors.textSecondary,
     fontSize: 15,
   },
   stepRow: {

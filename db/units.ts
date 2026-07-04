@@ -1,4 +1,5 @@
 import { Stage } from '@/constants/theme';
+import { deleteAllUnitPhotos } from '@/lib/photo-storage';
 import { getDb } from './database';
 
 export type Unit = {
@@ -92,6 +93,7 @@ export async function updateUnit(id: number, input: UnitInput): Promise<void> {
 export async function deleteUnit(id: number): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM units WHERE id = ?', id);
+  await deleteAllUnitPhotos(id);
 }
 
 export async function setInProgress(id: number, inProgress: boolean): Promise<void> {

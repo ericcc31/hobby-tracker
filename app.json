@@ -39,7 +39,14 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Wet Palette uses your photo library to attach photos of your miniatures at each painting stage.",
+          "cameraPermission": "Wet Palette uses your camera to take photos of your miniatures at each painting stage."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

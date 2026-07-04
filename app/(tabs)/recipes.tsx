@@ -1,24 +1,41 @@
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
 import { Fab } from '@/components/fab';
 import { Colors } from '@/constants/theme';
-import { listRecipes, Recipe } from '@/db/recipes';
+import { deleteRecipe, listRecipes, Recipe } from '@/db/recipes';
 
 export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
 
-  useFocusEffect(
-    useCallback(() => {
-      listRecipes().then(setRecipes);
-    }, [])
-  );
+  const refresh = useCallback(() => {
+    listRecipes().then(setRecipes);
+  }, []);
+
+  useFocusEffect(refresh);
+
+  function handleLongPress(recipe: Recipe) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(recipe.name, undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          await deleteRecipe(recipe.id);
+          refresh();
+        },
+      },
+    ]);
+  }
 
   return (
     <View style={styles.screen}>
@@ -32,6 +49,7 @@ export default function RecipesScreen() {
               <Pressable
                 key={recipe.id}
                 onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: String(recipe.id) } })}
+                onLongPress={() => handleLongPress(recipe)}
                 style={styles.recipeCardWrapper}>
                 <Card style={styles.recipeCard}>
                   <View style={styles.recipeThumb} />

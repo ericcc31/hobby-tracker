@@ -40,6 +40,14 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
           recipe_id INTEGER NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
           PRIMARY KEY (unit_id, recipe_id)
         );
+
+        CREATE TABLE IF NOT EXISTS unit_stage_photos (
+          unit_id INTEGER NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+          stage TEXT NOT NULL,
+          photo_uri TEXT NOT NULL,
+          taken_at INTEGER NOT NULL,
+          PRIMARY KEY (unit_id, stage)
+        );
       `);
       return db;
     });
