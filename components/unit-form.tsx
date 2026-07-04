@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PickerModal } from '@/components/picker-modal';
+import { StagePhotoManager } from '@/components/stage-photo-manager';
 import { StagePill } from '@/components/stage-pill';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FACTIONS, isSpaceMarines, SPACE_MARINE_CHAPTERS } from '@/constants/factions';
 import { Colors, Stage, Stages } from '@/constants/theme';
-import { UNIT_CATALOG } from '@/constants/unit-catalog';
+import { CHAPTER_UNIT_CATALOG, ROLE_ORDER, UNIT_CATALOG } from '@/constants/unit-catalog';
 import { listRecipes, Recipe } from '@/db/recipes';
 import { Unit, UnitInput } from '@/db/units';
 
@@ -17,6 +18,19 @@ const FACTION_SECTIONS = Object.entries(FACTIONS).map(([allegiance, items]) => (
 }));
 
 const CHAPTER_SECTIONS = [{ title: 'Chapter', items: [...SPACE_MARINE_CHAPTERS] }];
+
+function buildUnitNameSections(army: string, chapter: string | null) {
+  if (!army) return [];
+  const generic = UNIT_CATALOG[army] ?? [];
+  const chapterUnits = chapter ? CHAPTER_UNIT_CATALOG[chapter] ?? [] : [];
+  const byRole = new Map<string, string[]>();
+  for (const unit of [...chapterUnits, ...generic]) {
+    const list = byRole.get(unit.role) ?? [];
+    if (!list.includes(unit.name)) list.push(unit.name);
+    byRole.set(unit.role, list);
+  }
+  return ROLE_ORDER.filter((role) => byRole.has(role)).map((role) => ({ title: role, items: byRole.get(role)! }));
+}
 
 export function UnitForm({
   initialValues,
@@ -32,7 +46,12 @@ export function UnitForm({
   initialInProgress?: boolean;
   photosSection?: React.ReactNode;
   submitLabel: string;
-  onSubmit: (input: UnitInput, pinnedRecipeIds: number[], inProgress: boolean) => Promise<void>;
+  onSubmit: (
+    input: UnitInput,
+    pinnedRecipeIds: number[],
+    inProgress: boolean,
+    draftPhotos: Partial<Record<Stage, string>>
+  ) => Promise<void>;
   onDelete?: () => Promise<void>;
 }) {
   const [name, setName] = useState(initialValues?.name ?? '');
@@ -47,13 +66,14 @@ export function UnitForm({
   const [factionPickerVisible, setFactionPickerVisible] = useState(false);
   const [chapterPickerVisible, setChapterPickerVisible] = useState(false);
   const [unitNamePickerVisible, setUnitNamePickerVisible] = useState(false);
+  const [draftPhotos, setDraftPhotos] = useState<Partial<Record<Stage, string>>>({});
 
   useEffect(() => {
     listRecipes().then(setAllRecipes);
   }, []);
 
   const showChapterPicker = isSpaceMarines(army);
-  const unitNameSections = [{ title: army || 'Units', items: army ? UNIT_CATALOG[army] ?? [] : [] }];
+  const unitNameSections = buildUnitNameSections(army, chapter);
 
   function toggleRecipe(id: number) {
     setPinnedRecipeIds((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
@@ -75,7 +95,8 @@ export function UnitForm({
         notes,
       },
       pinnedRecipeIds,
-      inProgress
+      inProgress,
+      draftPhotos
     );
     setSaving(false);
   }
@@ -154,9 +175,17 @@ export function UnitForm({
       />
 
       {photosSection ?? (
-        <View style={styles.photosHint}>
-          <Text style={styles.photosHintLabel}>Save this unit to start adding stage photos.</Text>
-        </View>
+        <StagePhotoManager
+          photos={draftPhotos}
+          onAdd={(s, uri) => setDraftPhotos((prev) => ({ ...prev, [s]: uri }))}
+          onRemove={(s) =>
+            setDraftPhotos((prev) => {
+              const next = { ...prev };
+              delete next[s];
+              return next;
+            })
+          }
+        />
       )}
 
       <Text style={styles.label}>Stage</Text>
@@ -263,20 +292,6 @@ const styles = StyleSheet.create({
   inputPlaceholder: {
     color: Colors.textSecondary,
     fontSize: 15,
-  },
-  photosHint: {
-    marginTop: 18,
-    padding: 12,
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderStyle: 'dashed',
-  },
-  photosHintLabel: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    textAlign: 'center',
   },
   wrapRow: {
     flexDirection: 'row',

@@ -40,6 +40,8 @@ export default function EditUnitScreen() {
       photosSection={<UnitPhotos unitId={unitId} />}
       submitLabel="Save Changes"
       onSubmit={async (input, pinnedRecipeIds, inProgress) => {
+        // Photos for an existing unit are written directly to the DB by
+        // UnitPhotos as they're picked, so there's nothing to commit here.
         await updateUnit(unitId, input);
         await setPinnedRecipes(unitId, pinnedRecipeIds);
         await setInProgress(unitId, inProgress);

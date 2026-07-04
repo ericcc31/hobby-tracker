@@ -8,15 +8,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
 import { PickerModal } from '@/components/picker-modal';
+import { ReorderModal } from '@/components/reorder-modal';
 import { SectionHeader } from '@/components/section-header';
 import { StagePill } from '@/components/stage-pill';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getAllegiance } from '@/constants/factions';
 import { Colors, SCREEN_BOTTOM_PADDING, Stage, StageLabels, Stages } from '@/constants/theme';
 import { getUnitThumbnails } from '@/db/photos';
+import { getAllegianceOrder, setAllegianceOrder } from '@/db/settings';
 import { deleteUnit, listUnits, Unit } from '@/db/units';
 
 const ALL_STAGES_LABEL = 'All stages';
 const STAGE_FILTER_SECTIONS = [{ title: 'Filter by Stage', items: [ALL_STAGES_LABEL, ...Stages.map((s) => StageLabels[s])] }];
+const DEFAULT_ALLEGIANCE_ORDER = ['Space Marines', 'Imperium', 'Chaos', 'Xenos', 'Unassigned'];
 
 export default function UnitsScreen() {
   const insets = useSafeAreaInsets();
@@ -25,10 +29,13 @@ export default function UnitsScreen() {
   const [thumbnails, setThumbnails] = useState<Record<number, string>>({});
   const [stageFilter, setStageFilter] = useState<Stage | null>(null);
   const [filterPickerVisible, setFilterPickerVisible] = useState(false);
+  const [allegianceOrder, setAllegianceOrderState] = useState<string[]>(DEFAULT_ALLEGIANCE_ORDER);
+  const [reorderVisible, setReorderVisible] = useState(false);
 
   const refresh = useCallback(() => {
     listUnits().then(setUnits);
     getUnitThumbnails().then(setThumbnails);
+    getAllegianceOrder(DEFAULT_ALLEGIANCE_ORDER).then(setAllegianceOrderState);
   }, []);
 
   useFocusEffect(refresh);
@@ -68,6 +75,13 @@ export default function UnitsScreen() {
     return groups;
   }, [filtered]);
 
+  const orderedAllegiances = useMemo(() => {
+    const present = Object.keys(grouped);
+    const ordered = allegianceOrder.filter((a) => present.includes(a));
+    const missing = present.filter((a) => !allegianceOrder.includes(a));
+    return [...ordered, ...missing];
+  }, [grouped, allegianceOrder]);
+
   function openUnit(id: number) {
     router.push({ pathname: '/unit/[id]', params: { id: String(id) } });
   }
@@ -77,12 +91,19 @@ export default function UnitsScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: SCREEN_BOTTOM_PADDING }}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Units</Text>
-          {units.length > 0 && (
-            <Pressable style={styles.filterButton} onPress={() => setFilterPickerVisible(true)}>
-              <Text style={styles.filterButtonLabel}>{stageFilter ? StageLabels[stageFilter] : ALL_STAGES_LABEL}</Text>
-              <Text style={styles.filterButtonCaret}>▾</Text>
-            </Pressable>
-          )}
+          <View style={styles.headerActions}>
+            {orderedAllegiances.length > 1 && (
+              <Pressable style={styles.iconButton} onPress={() => setReorderVisible(true)}>
+                <IconSymbol name="arrow.up.arrow.down" size={16} color={Colors.textSecondary} />
+              </Pressable>
+            )}
+            {units.length > 0 && (
+              <Pressable style={styles.filterButton} onPress={() => setFilterPickerVisible(true)}>
+                <Text style={styles.filterButtonLabel}>{stageFilter ? StageLabels[stageFilter] : ALL_STAGES_LABEL}</Text>
+                <Text style={styles.filterButtonCaret}>▾</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
         <PickerModal
           visible={filterPickerVisible}
@@ -97,6 +118,17 @@ export default function UnitsScreen() {
               setStageFilter(match ?? null);
             }
             setFilterPickerVisible(false);
+          }}
+        />
+        <ReorderModal
+          visible={reorderVisible}
+          title="Reorder Factions"
+          items={orderedAllegiances}
+          onClose={() => setReorderVisible(false)}
+          onSave={(order) => {
+            const fullOrder = [...order, ...DEFAULT_ALLEGIANCE_ORDER.filter((a) => !order.includes(a))];
+            setAllegianceOrderState(fullOrder);
+            setAllegianceOrder(fullOrder);
           }}
         />
 
@@ -119,7 +151,8 @@ export default function UnitsScreen() {
         {units.length === 0 ? (
           <EmptyState icon="square.grid.2x2.fill" message="No units yet. Tap + to add your first miniature." />
         ) : (
-          Object.entries(grouped).map(([allegiance, subgroups]) => {
+          orderedAllegiances.map((allegiance) => {
+            const subgroups = grouped[allegiance];
             const allegianceTotal = Object.values(subgroups).reduce((sum, u) => sum + u.length, 0);
             return (
               <View key={allegiance}>
@@ -190,6 +223,19 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 28,
     fontWeight: '700',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterButton: {
     flexDirection: 'row',

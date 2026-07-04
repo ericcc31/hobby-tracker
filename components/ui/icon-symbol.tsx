@@ -21,6 +21,7 @@ const MAPPING = {
   'flame.fill': 'local-fire-department',
   'chevron.up': 'keyboard-arrow-up',
   'chevron.down': 'keyboard-arrow-down',
+  'arrow.up.arrow.down': 'swap-vert',
 } as IconMapping;
 
 /**

@@ -48,6 +48,11 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
           taken_at INTEGER NOT NULL,
           PRIMARY KEY (unit_id, stage)
         );
+
+        CREATE TABLE IF NOT EXISTS allegiance_order (
+          allegiance TEXT PRIMARY KEY,
+          sort_order INTEGER NOT NULL
+        );
       `);
       return db;
     });
