@@ -57,9 +57,17 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
           position INTEGER NOT NULL,
           PRIMARY KEY (group_key, item)
         );
-
-        ALTER TABLE recipes ADD COLUMN IF NOT EXISTS photo_uri TEXT;
       `);
+
+      // Older bundled SQLite versions don't support "ADD COLUMN IF NOT
+      // EXISTS", so add optional columns the portable way: try, and ignore
+      // the error if the column is already there.
+      try {
+        await db.execAsync('ALTER TABLE recipes ADD COLUMN photo_uri TEXT;');
+      } catch {
+        // Column already exists.
+      }
+
       return db;
     });
   }
