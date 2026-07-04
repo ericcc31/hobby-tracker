@@ -3,13 +3,16 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
+import {
+  NestableDraggableFlatList,
+  NestableScrollContainer,
+  RenderItemParams,
+} from 'react-native-draggable-flatlist';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
 import { PickerModal } from '@/components/picker-modal';
-import { ReorderModal } from '@/components/reorder-modal';
 import { SectionHeader } from '@/components/section-header';
 import { StagePill } from '@/components/stage-pill';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -32,7 +35,6 @@ export default function UnitsScreen() {
   const [filterPickerVisible, setFilterPickerVisible] = useState(false);
   const [allegianceOrder, setAllegianceOrderState] = useState<string[]>(DEFAULT_ALLEGIANCE_ORDER);
   const [armyOrders, setArmyOrders] = useState<Record<string, string[]>>({});
-  const [reorderTarget, setReorderTarget] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     listUnits().then(setUnits);
@@ -42,7 +44,7 @@ export default function UnitsScreen() {
 
   useFocusEffect(refresh);
 
-  function handleLongPress(unit: Unit) {
+  function handleLongPressDelete(unit: Unit) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(unit.name, undefined, [
       { text: 'Cancel', style: 'cancel' },
@@ -107,109 +109,111 @@ export default function UnitsScreen() {
 
   return (
     <View style={styles.screen}>
-      <DraggableFlatList
-        data={orderedAllegiances}
-        keyExtractor={(allegiance) => allegiance}
-        onDragBegin={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
-        onDragEnd={({ data }) => {
-          setAllegianceOrderState(data);
-          setOrder(ALLEGIANCE_ORDER_KEY, data);
-        }}
-        contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: SCREEN_BOTTOM_PADDING }}
-        ListHeaderComponent={
-          <>
-            <View style={styles.headerRow}>
-              <Text style={styles.title}>Units</Text>
-              {units.length > 0 && (
-                <Pressable style={styles.filterButton} onPress={() => setFilterPickerVisible(true)}>
-                  <Text style={styles.filterButtonLabel}>{stageFilter ? StageLabels[stageFilter] : ALL_STAGES_LABEL}</Text>
-                  <Text style={styles.filterButtonCaret}>▾</Text>
+      <NestableScrollContainer
+        contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: SCREEN_BOTTOM_PADDING }}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Units</Text>
+          {units.length > 0 && (
+            <Pressable style={styles.filterButton} onPress={() => setFilterPickerVisible(true)}>
+              <Text style={styles.filterButtonLabel}>{stageFilter ? StageLabels[stageFilter] : ALL_STAGES_LABEL}</Text>
+              <Text style={styles.filterButtonCaret}>▾</Text>
+            </Pressable>
+          )}
+        </View>
+        <PickerModal
+          visible={filterPickerVisible}
+          title="Filter by Stage"
+          sections={STAGE_FILTER_SECTIONS}
+          onClose={() => setFilterPickerVisible(false)}
+          onSelect={(value) => {
+            if (value === ALL_STAGES_LABEL) {
+              setStageFilter(null);
+            } else {
+              const match = Stages.find((s) => StageLabels[s] === value);
+              setStageFilter(match ?? null);
+            }
+            setFilterPickerVisible(false);
+          }}
+        />
+
+        {spotlight && (
+          <Card style={styles.spotlightCard}>
+            {thumbnails[spotlight.id] ? (
+              <Image source={{ uri: thumbnails[spotlight.id] }} style={styles.spotlightThumb} contentFit="cover" />
+            ) : (
+              <View style={styles.spotlightThumb} />
+            )}
+            <View style={styles.spotlightInfo}>
+              <Text style={styles.spotlightLabel}>IN PROGRESS</Text>
+              <Text style={styles.spotlightName}>{spotlight.name}</Text>
+              <Text style={styles.spotlightChapter}>{spotlight.chapter ?? spotlight.army}</Text>
+              <StagePill stage={spotlight.stage} />
+            </View>
+          </Card>
+        )}
+
+        {units.length === 0 && (
+          <EmptyState icon="square.grid.2x2.fill" message="No units yet. Tap + to add your first miniature." />
+        )}
+        {units.length > 0 && orderedAllegiances.length > 1 && (
+          <Text style={styles.dragHint}>Hold and drag a header (☰) to reorder factions or armies.</Text>
+        )}
+
+        <NestableDraggableFlatList
+          data={orderedAllegiances}
+          keyExtractor={(allegiance) => allegiance}
+          onDragBegin={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
+          onDragEnd={({ data }) => {
+            setAllegianceOrderState(data);
+            setOrder(ALLEGIANCE_ORDER_KEY, data);
+          }}
+          renderItem={({ item: allegiance, drag, isActive }: RenderItemParams<string>) => {
+            const subgroups = grouped[allegiance];
+            const allegianceTotal = Object.values(subgroups).reduce((sum, u) => sum + u.length, 0);
+            const subgroupKeys = orderedSubgroups(allegiance);
+            return (
+              <View style={[styles.allegianceBlock, isActive && styles.allegianceBlockActive]}>
+                <Pressable onLongPress={orderedAllegiances.length > 1 ? drag : undefined} style={styles.headerRowDrag}>
+                  {orderedAllegiances.length > 1 && (
+                    <IconSymbol name="line.3.horizontal" size={16} color={Colors.textSecondary} />
+                  )}
+                  <View style={styles.headerRowDragTitle}>
+                    <SectionHeader title={allegiance} subtitle={`${allegianceTotal}`} level="primary" />
+                  </View>
                 </Pressable>
-              )}
-            </View>
-            <PickerModal
-              visible={filterPickerVisible}
-              title="Filter by Stage"
-              sections={STAGE_FILTER_SECTIONS}
-              onClose={() => setFilterPickerVisible(false)}
-              onSelect={(value) => {
-                if (value === ALL_STAGES_LABEL) {
-                  setStageFilter(null);
-                } else {
-                  const match = Stages.find((s) => StageLabels[s] === value);
-                  setStageFilter(match ?? null);
-                }
-                setFilterPickerVisible(false);
-              }}
-            />
-            <ReorderModal
-              visible={reorderTarget !== null}
-              title={`Reorder ${reorderTarget}`}
-              items={orderedSubgroups(reorderTarget ?? '')}
-              onClose={() => setReorderTarget(null)}
-              onSave={(order) => {
-                if (reorderTarget) {
-                  setArmyOrders((prev) => ({ ...prev, [reorderTarget]: order }));
-                  setOrder(armyOrderKey(reorderTarget), order);
-                }
-              }}
-            />
 
-            {spotlight && (
-              <Card style={styles.spotlightCard}>
-                {thumbnails[spotlight.id] ? (
-                  <Image source={{ uri: thumbnails[spotlight.id] }} style={styles.spotlightThumb} contentFit="cover" />
-                ) : (
-                  <View style={styles.spotlightThumb} />
-                )}
-                <View style={styles.spotlightInfo}>
-                  <Text style={styles.spotlightLabel}>IN PROGRESS</Text>
-                  <Text style={styles.spotlightName}>{spotlight.name}</Text>
-                  <Text style={styles.spotlightChapter}>{spotlight.chapter ?? spotlight.army}</Text>
-                  <StagePill stage={spotlight.stage} />
-                </View>
-              </Card>
-            )}
-
-            {units.length === 0 && (
-              <EmptyState icon="square.grid.2x2.fill" message="No units yet. Tap + to add your first miniature." />
-            )}
-            {units.length > 0 && orderedAllegiances.length > 1 && (
-              <Text style={styles.dragHint}>Hold and drag a faction below to reorder it.</Text>
-            )}
-          </>
-        }
-        renderItem={({ item: allegiance, drag, isActive }: RenderItemParams<string>) => {
-          const subgroups = grouped[allegiance];
-          const allegianceTotal = Object.values(subgroups).reduce((sum, u) => sum + u.length, 0);
-          const subgroupKeys = orderedSubgroups(allegiance);
-          return (
-            <View style={[styles.allegianceBlock, isActive && styles.allegianceBlockActive]}>
-              <Pressable
-                onLongPress={orderedAllegiances.length > 1 ? drag : undefined}
-                style={styles.allegianceHeaderRow}>
-                {orderedAllegiances.length > 1 && (
-                  <IconSymbol name="line.3.horizontal" size={16} color={Colors.textSecondary} />
-                )}
-                <View style={styles.allegianceHeaderTitle}>
-                  <SectionHeader title={allegiance} subtitle={`${allegianceTotal}`} level="primary" />
-                </View>
-                {subgroupKeys.length > 1 && (
-                  <Pressable style={styles.smallIconButton} onPress={() => setReorderTarget(allegiance)}>
-                    <IconSymbol name="arrow.up.arrow.down" size={13} color={Colors.textSecondary} />
-                  </Pressable>
-                )}
-              </Pressable>
-              {subgroupKeys.map((subgroup) => (
-                <View key={subgroup}>
-                  <SectionHeader title={subgroup} subtitle={`${subgroups[subgroup].length}`} level="secondary" />
-                  <UnitGrid units={subgroups[subgroup]} thumbnails={thumbnails} onPress={openUnit} onLongPress={handleLongPress} />
-                </View>
-              ))}
-            </View>
-          );
-        }}
-      />
+                <NestableDraggableFlatList
+                  data={subgroupKeys}
+                  keyExtractor={(subgroup) => `${allegiance}::${subgroup}`}
+                  onDragBegin={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                  onDragEnd={({ data }) => {
+                    setArmyOrders((prev) => ({ ...prev, [allegiance]: data }));
+                    setOrder(armyOrderKey(allegiance), data);
+                  }}
+                  renderItem={({ item: subgroup, drag: dragSub, isActive: isActiveSub }: RenderItemParams<string>) => (
+                    <View style={[styles.subBlock, isActiveSub && styles.allegianceBlockActive]}>
+                      <Pressable onLongPress={subgroupKeys.length > 1 ? dragSub : undefined} style={styles.headerRowDrag}>
+                        {subgroupKeys.length > 1 && (
+                          <IconSymbol name="line.3.horizontal" size={12} color={Colors.textSecondary} />
+                        )}
+                        <View style={styles.headerRowDragTitle}>
+                          <SectionHeader title={subgroup} subtitle={`${subgroups[subgroup].length}`} level="secondary" />
+                        </View>
+                      </Pressable>
+                      <UnitGrid
+                        units={subgroups[subgroup]}
+                        thumbnails={thumbnails}
+                        onPress={openUnit}
+                        onLongPress={handleLongPressDelete}
+                      />
+                    </View>
+                  )}
+                />
+              </View>
+            );
+          }}
+        />
+      </NestableScrollContainer>
     </View>
   );
 }
@@ -277,21 +281,17 @@ const styles = StyleSheet.create({
   allegianceBlockActive: {
     backgroundColor: Colors.surface2,
   },
-  allegianceHeaderRow: {
+  subBlock: {
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  headerRowDrag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  allegianceHeaderTitle: {
+  headerRowDragTitle: {
     flex: 1,
-  },
-  smallIconButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: Colors.surface2,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   filterButton: {
     flexDirection: 'row',
