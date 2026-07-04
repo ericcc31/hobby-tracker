@@ -22,6 +22,7 @@ const MAPPING = {
   'chevron.up': 'keyboard-arrow-up',
   'chevron.down': 'keyboard-arrow-down',
   'arrow.up.arrow.down': 'swap-vert',
+  'line.3.horizontal': 'drag-handle',
 } as IconMapping;
 
 /**

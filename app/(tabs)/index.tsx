@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,7 +15,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { getAllegiance } from '@/constants/factions';
 import { Colors, SCREEN_BOTTOM_PADDING, Stage, StageLabels, Stages } from '@/constants/theme';
 import { getUnitThumbnails } from '@/db/photos';
-import { getAllegianceOrder, setAllegianceOrder } from '@/db/settings';
+import { ALLEGIANCE_ORDER_KEY, armyOrderKey, getOrder, setOrder } from '@/db/settings';
 import { deleteUnit, listUnits, Unit } from '@/db/units';
 
 const ALL_STAGES_LABEL = 'All stages';
@@ -30,12 +30,13 @@ export default function UnitsScreen() {
   const [stageFilter, setStageFilter] = useState<Stage | null>(null);
   const [filterPickerVisible, setFilterPickerVisible] = useState(false);
   const [allegianceOrder, setAllegianceOrderState] = useState<string[]>(DEFAULT_ALLEGIANCE_ORDER);
-  const [reorderVisible, setReorderVisible] = useState(false);
+  const [armyOrders, setArmyOrders] = useState<Record<string, string[]>>({});
+  const [reorderTarget, setReorderTarget] = useState<'allegiances' | string | null>(null);
 
   const refresh = useCallback(() => {
     listUnits().then(setUnits);
     getUnitThumbnails().then(setThumbnails);
-    getAllegianceOrder(DEFAULT_ALLEGIANCE_ORDER).then(setAllegianceOrderState);
+    getOrder(ALLEGIANCE_ORDER_KEY, DEFAULT_ALLEGIANCE_ORDER).then(setAllegianceOrderState);
   }, []);
 
   useFocusEffect(refresh);
@@ -82,6 +83,23 @@ export default function UnitsScreen() {
     return [...ordered, ...missing];
   }, [grouped, allegianceOrder]);
 
+  useEffect(() => {
+    Object.keys(grouped).forEach((allegiance) => {
+      const armies = Object.keys(grouped[allegiance]);
+      getOrder(armyOrderKey(allegiance), armies).then((order) => {
+        setArmyOrders((prev) => ({ ...prev, [allegiance]: order }));
+      });
+    });
+  }, [grouped]);
+
+  function orderedSubgroups(allegiance: string): string[] {
+    const present = Object.keys(grouped[allegiance] ?? {});
+    const order = armyOrders[allegiance] ?? [];
+    const ordered = order.filter((a) => present.includes(a));
+    const missing = present.filter((a) => !order.includes(a));
+    return [...ordered, ...missing];
+  }
+
   function openUnit(id: number) {
     router.push({ pathname: '/unit/[id]', params: { id: String(id) } });
   }
@@ -93,7 +111,7 @@ export default function UnitsScreen() {
           <Text style={styles.title}>Units</Text>
           <View style={styles.headerActions}>
             {orderedAllegiances.length > 1 && (
-              <Pressable style={styles.iconButton} onPress={() => setReorderVisible(true)}>
+              <Pressable style={styles.iconButton} onPress={() => setReorderTarget('allegiances')}>
                 <IconSymbol name="arrow.up.arrow.down" size={16} color={Colors.textSecondary} />
               </Pressable>
             )}
@@ -121,14 +139,19 @@ export default function UnitsScreen() {
           }}
         />
         <ReorderModal
-          visible={reorderVisible}
-          title="Reorder Factions"
-          items={orderedAllegiances}
-          onClose={() => setReorderVisible(false)}
+          visible={reorderTarget !== null}
+          title={reorderTarget === 'allegiances' ? 'Reorder Factions' : `Reorder ${reorderTarget}`}
+          items={reorderTarget === 'allegiances' ? orderedAllegiances : orderedSubgroups(reorderTarget ?? '')}
+          onClose={() => setReorderTarget(null)}
           onSave={(order) => {
-            const fullOrder = [...order, ...DEFAULT_ALLEGIANCE_ORDER.filter((a) => !order.includes(a))];
-            setAllegianceOrderState(fullOrder);
-            setAllegianceOrder(fullOrder);
+            if (reorderTarget === 'allegiances') {
+              const fullOrder = [...order, ...DEFAULT_ALLEGIANCE_ORDER.filter((a) => !order.includes(a))];
+              setAllegianceOrderState(fullOrder);
+              setOrder(ALLEGIANCE_ORDER_KEY, fullOrder);
+            } else if (reorderTarget) {
+              setArmyOrders((prev) => ({ ...prev, [reorderTarget]: order }));
+              setOrder(armyOrderKey(reorderTarget), order);
+            }
           }}
         />
 
@@ -154,13 +177,21 @@ export default function UnitsScreen() {
           orderedAllegiances.map((allegiance) => {
             const subgroups = grouped[allegiance];
             const allegianceTotal = Object.values(subgroups).reduce((sum, u) => sum + u.length, 0);
+            const subgroupKeys = orderedSubgroups(allegiance);
             return (
               <View key={allegiance}>
-                <SectionHeader title={allegiance} subtitle={`${allegianceTotal}`} level="primary" />
-                {Object.entries(subgroups).map(([subgroup, subgroupUnits]) => (
+                <View style={styles.allegianceHeaderRow}>
+                  <SectionHeader title={allegiance} subtitle={`${allegianceTotal}`} level="primary" />
+                  {subgroupKeys.length > 1 && (
+                    <Pressable style={styles.smallIconButton} onPress={() => setReorderTarget(allegiance)}>
+                      <IconSymbol name="arrow.up.arrow.down" size={13} color={Colors.textSecondary} />
+                    </Pressable>
+                  )}
+                </View>
+                {subgroupKeys.map((subgroup) => (
                   <View key={subgroup}>
-                    <SectionHeader title={subgroup} subtitle={`${subgroupUnits.length}`} level="secondary" />
-                    <UnitGrid units={subgroupUnits} thumbnails={thumbnails} onPress={openUnit} onLongPress={handleLongPress} />
+                    <SectionHeader title={subgroup} subtitle={`${subgroups[subgroup].length}`} level="secondary" />
+                    <UnitGrid units={subgroups[subgroup]} thumbnails={thumbnails} onPress={openUnit} onLongPress={handleLongPress} />
                   </View>
                 ))}
               </View>
@@ -233,6 +264,19 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
+    backgroundColor: Colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  allegianceHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  smallIconButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: Colors.surface2,
     alignItems: 'center',
     justifyContent: 'center',

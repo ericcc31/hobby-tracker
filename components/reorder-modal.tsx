@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
@@ -23,40 +25,33 @@ export function ReorderModal({
     if (visible) setOrder(items);
   }, [visible, items]);
 
-  function move(index: number, direction: -1 | 1) {
-    setOrder((prev) => {
-      const next = [...prev];
-      const target = index + direction;
-      if (target < 0 || target >= next.length) return prev;
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  }
-
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={styles.container}>
+      <GestureHandlerRootView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>
           <Pressable onPress={onClose}>
             <Text style={styles.closeLabel}>Cancel</Text>
           </Pressable>
         </View>
-        <View style={styles.list}>
-          {order.map((item, index) => (
-            <View key={item} style={styles.row}>
-              <Text style={styles.rowLabel}>{item}</Text>
-              <View style={styles.actions}>
-                <Pressable onPress={() => move(index, -1)} style={styles.actionBtn}>
-                  <IconSymbol name="chevron.up" size={18} color={Colors.textSecondary} />
-                </Pressable>
-                <Pressable onPress={() => move(index, 1)} style={styles.actionBtn}>
-                  <IconSymbol name="chevron.down" size={18} color={Colors.textSecondary} />
-                </Pressable>
-              </View>
-            </View>
-          ))}
-        </View>
+        <Text style={styles.hint}>Hold and drag a row to reorder.</Text>
+        <DraggableFlatList
+          data={order}
+          keyExtractor={(item) => item}
+          onDragEnd={({ data }) => setOrder(data)}
+          contentContainerStyle={styles.list}
+          renderItem={({ item, drag, isActive }: RenderItemParams<string>) => (
+            <ScaleDecorator>
+              <Pressable
+                onLongPress={drag}
+                disabled={isActive}
+                style={[styles.row, isActive && styles.rowActive]}>
+                <IconSymbol name="line.3.horizontal" size={16} color={Colors.textSecondary} />
+                <Text style={styles.rowLabel}>{item}</Text>
+              </Pressable>
+            </ScaleDecorator>
+          )}
+        />
         <Pressable
           style={styles.saveButton}
           onPress={() => {
@@ -65,7 +60,7 @@ export function ReorderModal({
           }}>
           <Text style={styles.saveButtonLabel}>Save Order</Text>
         </Pressable>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -93,35 +88,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  hint: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
   list: {
     padding: 16,
     gap: 8,
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
     backgroundColor: Colors.surface,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingVertical: 10,
+    paddingVertical: 14,
     paddingHorizontal: 14,
+  },
+  rowActive: {
+    backgroundColor: Colors.surface2,
+    borderColor: Colors.accent,
   },
   rowLabel: {
     color: Colors.text,
     fontSize: 15,
     fontWeight: '600',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  actionBtn: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   saveButton: {
     backgroundColor: Colors.accent,
@@ -130,6 +126,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 16,
     marginTop: 8,
+    marginBottom: 16,
   },
   saveButtonLabel: {
     color: '#fff',

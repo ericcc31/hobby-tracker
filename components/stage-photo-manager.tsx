@@ -137,6 +137,8 @@ export function StagePhotoManager({
     }
   }
 
+  const filledStages = Stages.filter((s) => photos[s]);
+
   return (
     <View>
       <View style={styles.headerRow}>
@@ -146,27 +148,20 @@ export function StagePhotoManager({
           <Text style={styles.addButtonLabel}>Add Photo</Text>
         </Pressable>
       </View>
-      <View style={styles.grid}>
-        {Stages.map((stage) => {
-          const uri = photos[stage];
-          return (
-            <Pressable
-              key={stage}
-              style={styles.slotWrapper}
-              disabled={!uri}
-              onPress={() => handleExistingPress(stage)}>
-              {uri ? (
-                <Image source={{ uri }} style={styles.thumb} contentFit="cover" />
-              ) : (
-                <View style={styles.emptySlot} />
-              )}
+      {filledStages.length === 0 ? (
+        <Text style={styles.emptyLabel}>No photos yet.</Text>
+      ) : (
+        <View style={styles.grid}>
+          {filledStages.map((stage) => (
+            <Pressable key={stage} style={styles.slotWrapper} onPress={() => handleExistingPress(stage)}>
+              <Image source={{ uri: photos[stage] }} style={styles.thumb} contentFit="cover" />
               <Text style={styles.slotLabel} numberOfLines={1}>
                 {StageLabels[stage]}
               </Text>
             </Pressable>
-          );
-        })}
-      </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -215,17 +210,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: Colors.surface2,
   },
-  emptySlot: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 10,
-    backgroundColor: Colors.surface2,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderStyle: 'dashed',
-  },
   slotLabel: {
     color: Colors.textSecondary,
     fontSize: 11,
+  },
+  emptyLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontStyle: 'italic',
   },
 });
