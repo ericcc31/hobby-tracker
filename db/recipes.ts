@@ -1,3 +1,4 @@
+import { deletePhotoFile } from '@/lib/photo-storage';
 import { getDb } from './database';
 
 export type RecipeStep = {
@@ -8,6 +9,7 @@ export type RecipeStep = {
 export type Recipe = {
   id: number;
   name: string;
+  photoUri: string | null;
   steps: RecipeStep[];
   createdAt: number;
   updatedAt: number;
@@ -21,6 +23,7 @@ export type RecipeInput = {
 type RecipeRow = {
   id: number;
   name: string;
+  photo_uri: string | null;
   created_at: number;
   updated_at: number;
 };
@@ -47,17 +50,22 @@ async function loadSteps(db: Awaited<ReturnType<typeof getDb>>, recipeIds: numbe
   return map;
 }
 
+function rowToRecipe(row: RecipeRow, steps: RecipeStep[]): Recipe {
+  return {
+    id: row.id,
+    name: row.name,
+    photoUri: row.photo_uri,
+    steps,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 export async function listRecipes(): Promise<Recipe[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<RecipeRow>('SELECT * FROM recipes ORDER BY updated_at DESC');
   const stepsByRecipe = await loadSteps(db, rows.map((r) => r.id));
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    steps: stepsByRecipe.get(row.id) ?? [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return rows.map((row) => rowToRecipe(row, stepsByRecipe.get(row.id) ?? []));
 }
 
 export async function getRecipe(id: number): Promise<Recipe | null> {
@@ -65,13 +73,7 @@ export async function getRecipe(id: number): Promise<Recipe | null> {
   const row = await db.getFirstAsync<RecipeRow>('SELECT * FROM recipes WHERE id = ?', id);
   if (!row) return null;
   const stepsByRecipe = await loadSteps(db, [id]);
-  return {
-    id: row.id,
-    name: row.name,
-    steps: stepsByRecipe.get(id) ?? [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
+  return rowToRecipe(row, stepsByRecipe.get(id) ?? []);
 }
 
 async function replaceSteps(db: Awaited<ReturnType<typeof getDb>>, recipeId: number, steps: RecipeStep[]): Promise<void> {
@@ -106,9 +108,16 @@ export async function updateRecipe(id: number, input: RecipeInput): Promise<void
   await replaceSteps(db, id, input.steps);
 }
 
+export async function setRecipePhoto(id: number, photoUri: string | null): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE recipes SET photo_uri = ? WHERE id = ?', photoUri, id);
+}
+
 export async function deleteRecipe(id: number): Promise<void> {
   const db = await getDb();
+  const row = await db.getFirstAsync<{ photo_uri: string | null }>('SELECT photo_uri FROM recipes WHERE id = ?', id);
   await db.runAsync('DELETE FROM recipes WHERE id = ?', id);
+  if (row?.photo_uri) await deletePhotoFile(row.photo_uri);
 }
 
 export async function getPinnedUnitIds(recipeId: number): Promise<number[]> {

@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionSheetIOS, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PickerModal } from '@/components/picker-modal';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -8,6 +9,7 @@ import { getPaintHex, PAINT_CATALOG } from '@/constants/paints';
 import { Colors } from '@/constants/theme';
 import { listUnits, Unit } from '@/db/units';
 import { Recipe, RecipeInput, RecipeStep } from '@/db/recipes';
+import { askSource, pickImage } from '@/lib/image-picker-helpers';
 
 const BRANDS: string[] = Array.from(new Set(PAINT_CATALOG.map((r) => r.brand)));
 const BRAND_SECTIONS = [{ title: 'Brand', items: BRANDS }];
@@ -29,7 +31,7 @@ export function RecipeForm({
   initialValues?: Recipe;
   initialPinnedUnitIds?: number[];
   submitLabel: string;
-  onSubmit: (input: RecipeInput, pinnedUnitIds: number[]) => Promise<void>;
+  onSubmit: (input: RecipeInput, pinnedUnitIds: number[], photoUpdate: string | null | undefined) => Promise<void>;
   onDelete?: () => Promise<void>;
 }) {
   const [name, setName] = useState(initialValues?.name ?? '');
@@ -41,10 +43,57 @@ export function RecipeForm({
   const [saving, setSaving] = useState(false);
   const [paintPickerIndex, setPaintPickerIndex] = useState<number | null>(null);
   const [paintPickerBrand, setPaintPickerBrand] = useState<string | null>(null);
+  const [photoUri, setPhotoUri] = useState<string | null>(initialValues?.photoUri ?? null);
+  const [photoChanged, setPhotoChanged] = useState(false);
 
   useEffect(() => {
     listUnits().then(setAllUnits);
   }, []);
+
+  async function pickAndSetPhoto() {
+    const source = await askSource();
+    if (!source) return;
+    const uri = await pickImage(source, [4, 3]);
+    if (uri) {
+      setPhotoUri(uri);
+      setPhotoChanged(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }
+
+  function handlePhotoPress() {
+    if (!photoUri) {
+      pickAndSetPhoto();
+      return;
+    }
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Replace Photo', 'Remove Photo', 'Cancel'], destructiveButtonIndex: 1, cancelButtonIndex: 2 },
+        (index) => {
+          if (index === 0) pickAndSetPhoto();
+          else if (index === 1) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            setPhotoUri(null);
+            setPhotoChanged(true);
+          }
+        }
+      );
+    } else {
+      Alert.alert('Photo', undefined, [
+        { text: 'Replace Photo', onPress: pickAndSetPhoto },
+        {
+          text: 'Remove Photo',
+          style: 'destructive',
+          onPress: () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            setPhotoUri(null);
+            setPhotoChanged(true);
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  }
 
   function updateStep(index: number, field: keyof RecipeStep, value: string) {
     setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
@@ -82,7 +131,7 @@ export function RecipeForm({
       .filter((s) => s.paintName.length > 0);
     setSaving(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await onSubmit({ name: name.trim(), steps: cleanSteps }, pinnedUnitIds);
+    await onSubmit({ name: name.trim(), steps: cleanSteps }, pinnedUnitIds, photoChanged ? photoUri : undefined);
     setSaving(false);
   }
 
@@ -110,6 +159,18 @@ export function RecipeForm({
         placeholder="e.g. Blood Angels Red Armor"
         placeholderTextColor={Colors.textSecondary}
       />
+
+      <Text style={styles.label}>Photo</Text>
+      <Pressable onPress={handlePhotoPress}>
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={styles.photoPreview} contentFit="cover" />
+        ) : (
+          <View style={styles.photoPlaceholder}>
+            <IconSymbol name="plus" size={20} color={Colors.textSecondary} />
+            <Text style={styles.photoPlaceholderLabel}>Add Photo</Text>
+          </View>
+        )}
+      </Pressable>
 
       <Text style={styles.label}>Steps</Text>
       {steps.map((step, index) => (
@@ -266,6 +327,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  photoPreview: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: 12,
+    backgroundColor: Colors.surface2,
+  },
+  photoPlaceholder: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  photoPlaceholderLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
   },
   stepRow: {
     flexDirection: 'row',

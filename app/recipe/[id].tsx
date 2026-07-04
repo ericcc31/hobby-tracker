@@ -4,7 +4,8 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { RecipeForm } from '@/components/recipe-form';
 import { Colors } from '@/constants/theme';
-import { deleteRecipe, getPinnedUnitIds, getRecipe, Recipe, setPinnedUnits, updateRecipe } from '@/db/recipes';
+import { deleteRecipe, getPinnedUnitIds, getRecipe, Recipe, setPinnedUnits, setRecipePhoto, updateRecipe } from '@/db/recipes';
+import { deletePhotoFile, saveRecipePhoto } from '@/lib/photo-storage';
 
 export default function EditRecipeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -36,9 +37,16 @@ export default function EditRecipeScreen() {
       initialValues={recipe}
       initialPinnedUnitIds={pinnedIds}
       submitLabel="Save Changes"
-      onSubmit={async (input, pinnedUnitIds) => {
+      onSubmit={async (input, pinnedUnitIds, photoUpdate) => {
         await updateRecipe(recipeId, input);
         await setPinnedUnits(recipeId, pinnedUnitIds);
+        if (photoUpdate === null) {
+          if (recipe.photoUri) await deletePhotoFile(recipe.photoUri);
+          await setRecipePhoto(recipeId, null);
+        } else if (typeof photoUpdate === 'string') {
+          const savedUri = await saveRecipePhoto(recipeId, photoUpdate);
+          await setRecipePhoto(recipeId, savedUri);
+        }
         router.back();
       }}
       onDelete={async () => {

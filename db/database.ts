@@ -57,6 +57,8 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
           position INTEGER NOT NULL,
           PRIMARY KEY (group_key, item)
         );
+
+        ALTER TABLE recipes ADD COLUMN IF NOT EXISTS photo_uri TEXT;
       `);
       return db;
     });
