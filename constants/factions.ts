@@ -1,8 +1,8 @@
-export type Allegiance = 'Imperium' | 'Chaos' | 'Xenos';
+export type Allegiance = 'Space Marines' | 'Imperium' | 'Chaos' | 'Xenos';
 
 export const FACTIONS: Record<Allegiance, string[]> = {
+  'Space Marines': ['Space Marines'],
   Imperium: [
-    'Space Marines',
     'Astra Militarum',
     'Adeptus Mechanicus',
     'Adepta Sororitas',
@@ -43,4 +43,13 @@ export const SPACE_MARINE_CHAPTERS = [
 
 export function isSpaceMarines(army: string): boolean {
   return army === 'Space Marines';
+}
+
+const ARMY_TO_ALLEGIANCE: Record<string, Allegiance> = {};
+for (const [allegiance, armies] of Object.entries(FACTIONS)) {
+  for (const army of armies) ARMY_TO_ALLEGIANCE[army] = allegiance as Allegiance;
+}
+
+export function getAllegiance(army: string): Allegiance | 'Unassigned' {
+  return ARMY_TO_ALLEGIANCE[army] ?? 'Unassigned';
 }

@@ -4,7 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 
 import { PickerModal } from '@/components/picker-modal';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { PAINT_CATALOG } from '@/constants/paints';
+import { getPaintHex, PAINT_CATALOG } from '@/constants/paints';
 import { Colors } from '@/constants/theme';
 import { listUnits, Unit } from '@/db/units';
 import { Recipe, RecipeInput, RecipeStep } from '@/db/recipes';
@@ -13,7 +13,10 @@ const BRANDS: string[] = Array.from(new Set(PAINT_CATALOG.map((r) => r.brand)));
 const BRAND_SECTIONS = [{ title: 'Brand', items: BRANDS }];
 
 function paintSectionsForBrand(brand: string) {
-  return PAINT_CATALOG.filter((r) => r.brand === brand).map((r) => ({ title: r.range, items: r.paints }));
+  return PAINT_CATALOG.filter((r) => r.brand === brand).map((r) => ({
+    title: r.range,
+    items: r.paints.map((p) => p.name),
+  }));
 }
 
 export function RecipeForm({
@@ -113,11 +116,14 @@ export function RecipeForm({
         <View key={index} style={styles.stepRow}>
           <View style={styles.stepFields}>
             <Pressable
-              style={styles.input}
+              style={[styles.input, styles.paintInput]}
               onPress={() => {
                 setPaintPickerBrand(null);
                 setPaintPickerIndex(index);
               }}>
+              {step.paintName && getPaintHex(step.paintName) && (
+                <View style={[styles.swatch, { backgroundColor: getPaintHex(step.paintName) }]} />
+              )}
               <Text style={step.paintName ? styles.inputValue : styles.inputPlaceholder}>
                 {step.paintName || 'Choose a paint'}
               </Text>
@@ -198,6 +204,7 @@ export function RecipeForm({
         sections={paintPickerBrand ? paintSectionsForBrand(paintPickerBrand) : []}
         searchable
         allowCustom
+        getColor={getPaintHex}
         onClose={() => {
           setPaintPickerIndex(null);
           setPaintPickerBrand(null);
@@ -247,6 +254,18 @@ const styles = StyleSheet.create({
   inputPlaceholder: {
     color: Colors.textSecondary,
     fontSize: 15,
+  },
+  paintInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  swatch: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   stepRow: {
     flexDirection: 'row',

@@ -12,6 +12,7 @@ import { Fab } from '@/components/fab';
 import { PickerModal } from '@/components/picker-modal';
 import { SectionHeader } from '@/components/section-header';
 import { StagePill } from '@/components/stage-pill';
+import { getAllegiance } from '@/constants/factions';
 import { Colors, Stage, StageLabels, Stages } from '@/constants/theme';
 import { getUnitThumbnails } from '@/db/photos';
 import { deleteUnit, listUnits, Unit } from '@/db/units';
@@ -59,11 +60,13 @@ export default function UnitsScreen() {
   );
 
   const grouped = useMemo(() => {
-    const groups: Record<string, Unit[]> = {};
+    const groups: Record<string, Record<string, Unit[]>> = {};
     for (const unit of filtered) {
-      const key = unit.chapter ?? unit.army ?? 'Unassigned';
-      groups[key] ??= [];
-      groups[key].push(unit);
+      const allegiance = getAllegiance(unit.army);
+      const subgroup = unit.chapter ?? unit.army ?? 'Unassigned';
+      groups[allegiance] ??= {};
+      groups[allegiance][subgroup] ??= [];
+      groups[allegiance][subgroup].push(unit);
     }
     return groups;
   }, [filtered]);
@@ -119,12 +122,20 @@ export default function UnitsScreen() {
         {units.length === 0 ? (
           <EmptyState icon="square.grid.2x2.fill" message="No units yet. Tap + to add your first miniature." />
         ) : (
-          Object.entries(grouped).map(([chapter, chapterUnits]) => (
-            <View key={chapter}>
-              <SectionHeader title={chapter} subtitle={`${chapterUnits.length}`} />
-              <UnitGrid units={chapterUnits} thumbnails={thumbnails} onPress={openUnit} onLongPress={handleLongPress} />
-            </View>
-          ))
+          Object.entries(grouped).map(([allegiance, subgroups]) => {
+            const allegianceTotal = Object.values(subgroups).reduce((sum, u) => sum + u.length, 0);
+            return (
+              <View key={allegiance}>
+                <SectionHeader title={allegiance} subtitle={`${allegianceTotal}`} level="primary" />
+                {Object.entries(subgroups).map(([subgroup, subgroupUnits]) => (
+                  <View key={subgroup}>
+                    <SectionHeader title={subgroup} subtitle={`${subgroupUnits.length}`} level="secondary" />
+                    <UnitGrid units={subgroupUnits} thumbnails={thumbnails} onPress={openUnit} onLongPress={handleLongPress} />
+                  </View>
+                ))}
+              </View>
+            );
+          })
         )}
       </ScrollView>
       <Fab onPress={() => router.push('/unit/new')} />

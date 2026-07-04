@@ -13,6 +13,7 @@ export function PickerModal({
   onClose,
   searchable = false,
   allowCustom = false,
+  getColor,
 }: {
   visible: boolean;
   title: string;
@@ -21,6 +22,7 @@ export function PickerModal({
   onClose: () => void;
   searchable?: boolean;
   allowCustom?: boolean;
+  getColor?: (item: string) => string | undefined;
 }) {
   const [query, setQuery] = useState('');
 
@@ -68,11 +70,15 @@ export function PickerModal({
           {filteredSections.map((section) => (
             <View key={section.title}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
-              {section.items.map((item) => (
-                <Pressable key={item} style={styles.row} onPress={() => handleSelect(item)}>
-                  <Text style={styles.rowLabel}>{item}</Text>
-                </Pressable>
-              ))}
+              {section.items.map((item) => {
+                const color = getColor?.(item);
+                return (
+                  <Pressable key={item} style={styles.row} onPress={() => handleSelect(item)}>
+                    {color && <View style={[styles.swatch, { backgroundColor: color }]} />}
+                    <Text style={styles.rowLabel}>{item}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           ))}
           {allowCustom && (
@@ -131,6 +137,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -139,6 +148,13 @@ const styles = StyleSheet.create({
   rowLabel: {
     color: Colors.text,
     fontSize: 15,
+  },
+  swatch: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   customRow: {
     paddingVertical: 16,

@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 
+import { BlurTabBarBackground } from '@/components/blur-tab-bar-background';
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, NavBar } from '@/constants/theme';
@@ -13,6 +14,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.textSecondary,
         tabBarShowLabel: true,
+        tabBarBackground: () => <BlurTabBarBackground />,
         tabBarStyle: {
           position: 'absolute',
           left: NavBar.sideMargin,
@@ -20,7 +22,8 @@ export default function TabLayout() {
           bottom: NavBar.bottom,
           height: NavBar.height,
           borderRadius: NavBar.height / 2,
-          backgroundColor: Colors.surface,
+          overflow: 'hidden',
+          backgroundColor: 'transparent',
           borderTopWidth: 0,
           paddingTop: 10,
           paddingBottom: 10,
