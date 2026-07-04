@@ -1,27 +1,36 @@
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, StageColors, StageLabels, Stages } from '@/constants/theme';
+import { Colors, Stage, StageColors, StageLabels, Stages } from '@/constants/theme';
+import { getStageCounts } from '@/db/units';
 
-// Fake counts, one per stage, just to preview the chart shape.
-const FAKE_STAGE_COUNTS: Record<string, number> = {
-  bought: 2,
-  built: 1,
-  primed: 1,
-  painted: 1,
+const EMPTY_COUNTS: Record<Stage, number> = {
+  bought: 0,
+  built: 0,
+  primed: 0,
+  painted: 0,
   based: 0,
   transfers: 0,
-  finished: 1,
+  finished: 0,
 };
-
-const MAX_COUNT = Math.max(...Object.values(FAKE_STAGE_COUNTS));
-const TOTAL = Object.values(FAKE_STAGE_COUNTS).reduce((a, b) => a + b, 0);
-const FINISHED = FAKE_STAGE_COUNTS.finished;
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
+  const [counts, setCounts] = useState<Record<Stage, number>>(EMPTY_COUNTS);
+
+  useFocusEffect(
+    useCallback(() => {
+      getStageCounts().then(setCounts);
+    }, [])
+  );
+
+  const total = useMemo(() => Object.values(counts).reduce((a, b) => a + b, 0), [counts]);
+  const finished = counts.finished;
+  const maxCount = Math.max(1, ...Object.values(counts));
 
   return (
     <ScrollView
@@ -30,22 +39,22 @@ export default function ProgressScreen() {
       <View style={styles.headerRow}>
         <Text style={styles.title}>Progress</Text>
         <View style={styles.streakBadge}>
-          <IconSymbol name="flame.fill" size={14} color={Colors.accent} />
-          <Text style={styles.streakLabel}>3</Text>
+          <IconSymbol name="flame.fill" size={14} color={Colors.textSecondary} />
+          <Text style={styles.streakLabel}>0</Text>
         </View>
       </View>
 
       <View style={styles.statRow}>
         <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{TOTAL}</Text>
+          <Text style={styles.statValue}>{total}</Text>
           <Text style={styles.statLabel}>Total units</Text>
         </Card>
         <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{FINISHED}</Text>
+          <Text style={styles.statValue}>{finished}</Text>
           <Text style={styles.statLabel}>Finished</Text>
         </Card>
         <Card style={styles.statCard}>
-          <Text style={styles.statValue}>{Math.round((FINISHED / TOTAL) * 100)}%</Text>
+          <Text style={styles.statValue}>{total > 0 ? Math.round((finished / total) * 100) : 0}%</Text>
           <Text style={styles.statLabel}>Complete</Text>
         </Card>
       </View>
@@ -60,12 +69,12 @@ export default function ProgressScreen() {
                   styles.barFill,
                   {
                     backgroundColor: StageColors[stage],
-                    width: `${(FAKE_STAGE_COUNTS[stage] / MAX_COUNT) * 100}%`,
+                    width: `${(counts[stage] / maxCount) * 100}%`,
                   },
                 ]}
               />
             </View>
-            <Text style={styles.barCount}>{FAKE_STAGE_COUNTS[stage]}</Text>
+            <Text style={styles.barCount}>{counts[stage]}</Text>
           </View>
         ))}
       </Card>

@@ -1,42 +1,51 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
+import { EmptyState } from '@/components/empty-state';
 import { Fab } from '@/components/fab';
 import { Colors } from '@/constants/theme';
-
-type FakeRecipe = {
-  id: string;
-  name: string;
-  stepCount: number;
-};
-
-const FAKE_RECIPES: FakeRecipe[] = [
-  { id: '1', name: 'Blood Angels Red Armor', stepCount: 5 },
-  { id: '2', name: 'Dark Angels Green', stepCount: 4 },
-  { id: '3', name: 'Gold Trim & Purity Seals', stepCount: 3 },
-];
+import { listRecipes, Recipe } from '@/db/recipes';
 
 export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      listRecipes().then(setRecipes);
+    }, [])
+  );
 
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12 }}>
         <Text style={styles.title}>Paint Recipes</Text>
-        <View style={styles.grid}>
-          {FAKE_RECIPES.map((recipe) => (
-            <Card key={recipe.id} style={styles.recipeCard}>
-              <View style={styles.recipeThumb} />
-              <Text style={styles.recipeName} numberOfLines={1}>
-                {recipe.name}
-              </Text>
-              <Text style={styles.recipeSteps}>{recipe.stepCount} steps</Text>
-            </Card>
-          ))}
-        </View>
+        {recipes.length === 0 ? (
+          <EmptyState icon="paintpalette.fill" message="No recipes yet. Tap + to add your first paint recipe." />
+        ) : (
+          <View style={styles.grid}>
+            {recipes.map((recipe) => (
+              <Pressable
+                key={recipe.id}
+                onPress={() => router.push({ pathname: '/recipe/[id]', params: { id: String(recipe.id) } })}
+                style={styles.recipeCardWrapper}>
+                <Card style={styles.recipeCard}>
+                  <View style={styles.recipeThumb} />
+                  <Text style={styles.recipeName} numberOfLines={1}>
+                    {recipe.name}
+                  </Text>
+                  <Text style={styles.recipeSteps}>{recipe.steps.length} steps</Text>
+                </Card>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </ScrollView>
-      <Fab onPress={() => {}} />
+      <Fab onPress={() => router.push('/recipe/new')} />
     </View>
   );
 }
@@ -57,8 +66,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
-  recipeCard: {
+  recipeCardWrapper: {
     width: '47%',
+  },
+  recipeCard: {
     gap: 8,
   },
   recipeThumb: {

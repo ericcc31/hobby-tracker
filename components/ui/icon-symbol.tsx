@@ -19,6 +19,8 @@ const MAPPING = {
   'chart.bar.fill': 'bar-chart',
   'plus': 'add',
   'flame.fill': 'local-fire-department',
+  'chevron.up': 'keyboard-arrow-up',
+  'chevron.down': 'keyboard-arrow-down',
 } as IconMapping;
 
 /**

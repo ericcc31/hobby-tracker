@@ -1,50 +1,49 @@
-import { useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
+import { EmptyState } from '@/components/empty-state';
 import { Fab } from '@/components/fab';
 import { SectionHeader } from '@/components/section-header';
 import { StagePill } from '@/components/stage-pill';
 import { Colors, Stage, StageLabels, Stages } from '@/constants/theme';
-
-type FakeUnit = {
-  id: string;
-  name: string;
-  chapter: string;
-  stage: Stage;
-};
-
-const FAKE_UNITS: FakeUnit[] = [
-  { id: '1', name: 'Intercessor Squad', chapter: 'Blood Angels', stage: 'painted' },
-  { id: '2', name: 'Redemptor Dreadnought', chapter: 'Blood Angels', stage: 'primed' },
-  { id: '3', name: 'Assault Intercessors', chapter: 'Blood Angels', stage: 'finished' },
-  { id: '4', name: 'Terminator Squad', chapter: 'Dark Angels', stage: 'built' },
-  { id: '5', name: 'Ravenwing Bikers', chapter: 'Dark Angels', stage: 'bought' },
-];
-
-const SPOTLIGHT_ID = '2';
+import { listUnits, Unit } from '@/db/units';
 
 export default function UnitsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const [units, setUnits] = useState<Unit[]>([]);
   const [viewMode, setViewMode] = useState<'all' | 'faction'>('all');
   const [stageFilter, setStageFilter] = useState<Stage | null>(null);
 
-  const spotlight = FAKE_UNITS.find((u) => u.id === SPOTLIGHT_ID);
+  useFocusEffect(
+    useCallback(() => {
+      listUnits().then(setUnits);
+    }, [])
+  );
+
+  const spotlight = units.find((u) => u.inProgress);
 
   const filtered = useMemo(
-    () => FAKE_UNITS.filter((u) => !stageFilter || u.stage === stageFilter),
-    [stageFilter]
+    () => units.filter((u) => !stageFilter || u.stage === stageFilter),
+    [units, stageFilter]
   );
 
   const grouped = useMemo(() => {
-    const groups: Record<string, FakeUnit[]> = {};
+    const groups: Record<string, Unit[]> = {};
     for (const unit of filtered) {
-      groups[unit.chapter] ??= [];
-      groups[unit.chapter].push(unit);
+      const key = unit.chapter ?? unit.army ?? 'Unassigned';
+      groups[key] ??= [];
+      groups[key].push(unit);
     }
     return groups;
   }, [filtered]);
+
+  function openUnit(id: number) {
+    router.push({ pathname: '/unit/[id]', params: { id: String(id) } });
+  }
 
   return (
     <View style={styles.screen}>
@@ -67,63 +66,69 @@ export default function UnitsScreen() {
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-          <Pressable
-            style={[styles.chip, stageFilter === null && styles.chipActive]}
-            onPress={() => setStageFilter(null)}>
-            <Text style={[styles.chipLabel, stageFilter === null && styles.chipLabelActive]}>All stages</Text>
-          </Pressable>
-          {Stages.map((stage) => (
+        {units.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
             <Pressable
-              key={stage}
-              style={[styles.chip, stageFilter === stage && styles.chipActive]}
-              onPress={() => setStageFilter(stage)}>
-              <Text style={[styles.chipLabel, stageFilter === stage && styles.chipLabelActive]}>
-                {StageLabels[stage]}
-              </Text>
+              style={[styles.chip, stageFilter === null && styles.chipActive]}
+              onPress={() => setStageFilter(null)}>
+              <Text style={[styles.chipLabel, stageFilter === null && styles.chipLabelActive]}>All stages</Text>
             </Pressable>
-          ))}
-        </ScrollView>
+            {Stages.map((stage) => (
+              <Pressable
+                key={stage}
+                style={[styles.chip, stageFilter === stage && styles.chipActive]}
+                onPress={() => setStageFilter(stage)}>
+                <Text style={[styles.chipLabel, stageFilter === stage && styles.chipLabelActive]}>
+                  {StageLabels[stage]}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
 
         {spotlight && (
           <Card style={styles.spotlightCard}>
             <Text style={styles.spotlightLabel}>IN PROGRESS</Text>
             <Text style={styles.spotlightName}>{spotlight.name}</Text>
-            <Text style={styles.spotlightChapter}>{spotlight.chapter}</Text>
+            <Text style={styles.spotlightChapter}>{spotlight.chapter ?? spotlight.army}</Text>
             <StagePill stage={spotlight.stage} />
           </Card>
         )}
 
-        {viewMode === 'all' ? (
+        {units.length === 0 ? (
+          <EmptyState icon="square.grid.2x2.fill" message="No units yet. Tap + to add your first miniature." />
+        ) : viewMode === 'all' ? (
           <>
             <SectionHeader title="All units" subtitle={`${filtered.length}`} />
-            <UnitGrid units={filtered} />
+            <UnitGrid units={filtered} onPress={openUnit} />
           </>
         ) : (
-          Object.entries(grouped).map(([chapter, units]) => (
+          Object.entries(grouped).map(([chapter, chapterUnits]) => (
             <View key={chapter}>
-              <SectionHeader title={chapter} subtitle={`${units.length}`} />
-              <UnitGrid units={units} />
+              <SectionHeader title={chapter} subtitle={`${chapterUnits.length}`} />
+              <UnitGrid units={chapterUnits} onPress={openUnit} />
             </View>
           ))
         )}
       </ScrollView>
-      <Fab onPress={() => {}} />
+      <Fab onPress={() => router.push('/unit/new')} />
     </View>
   );
 }
 
-function UnitGrid({ units }: { units: FakeUnit[] }) {
+function UnitGrid({ units, onPress }: { units: Unit[]; onPress: (id: number) => void }) {
   return (
     <View style={styles.grid}>
       {units.map((unit) => (
-        <Card key={unit.id} style={styles.unitCard}>
-          <View style={styles.unitThumb} />
-          <Text style={styles.unitName} numberOfLines={1}>
-            {unit.name}
-          </Text>
-          <StagePill stage={unit.stage} />
-        </Card>
+        <Pressable key={unit.id} onPress={() => onPress(unit.id)} style={styles.unitCardWrapper}>
+          <Card style={styles.unitCard}>
+            <View style={styles.unitThumb} />
+            <Text style={styles.unitName} numberOfLines={1}>
+              {unit.name}
+            </Text>
+            <StagePill stage={unit.stage} />
+          </Card>
+        </Pressable>
       ))}
     </View>
   );
@@ -213,8 +218,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
-  unitCard: {
+  unitCardWrapper: {
     width: '47%',
+  },
+  unitCard: {
     gap: 8,
   },
   unitThumb: {
