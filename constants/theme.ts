@@ -52,6 +52,9 @@ export const NavBar = {
   fabGap: 12,
 };
 
+// How much bottom padding scrollable screens need so content clears the floating nav bar.
+export const SCREEN_BOTTOM_PADDING = NavBar.bottom + NavBar.height + 24;
+
 export const Fonts = Platform.select({
   ios: {
     sans: 'system-ui',

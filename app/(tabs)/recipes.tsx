@@ -1,4 +1,3 @@
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -7,13 +6,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
-import { Fab } from '@/components/fab';
-import { Colors } from '@/constants/theme';
+import { Colors, SCREEN_BOTTOM_PADDING } from '@/constants/theme';
 import { deleteRecipe, listRecipes, Recipe } from '@/db/recipes';
 
 export default function RecipesScreen() {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
   const router = useRouter();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
 
@@ -41,7 +38,7 @@ export default function RecipesScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabBarHeight + 24 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: SCREEN_BOTTOM_PADDING }}>
         <Text style={styles.title}>Paint Recipes</Text>
         {recipes.length === 0 ? (
           <EmptyState icon="paintpalette.fill" message="No recipes yet. Tap + to add your first paint recipe." />
@@ -65,7 +62,6 @@ export default function RecipesScreen() {
           </View>
         )}
       </ScrollView>
-      <Fab onPress={() => router.push('/recipe/new')} />
     </View>
   );
 }

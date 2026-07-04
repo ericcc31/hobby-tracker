@@ -3,17 +3,15 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
-import { Fab } from '@/components/fab';
 import { PickerModal } from '@/components/picker-modal';
 import { SectionHeader } from '@/components/section-header';
 import { StagePill } from '@/components/stage-pill';
 import { getAllegiance } from '@/constants/factions';
-import { Colors, Stage, StageLabels, Stages } from '@/constants/theme';
+import { Colors, SCREEN_BOTTOM_PADDING, Stage, StageLabels, Stages } from '@/constants/theme';
 import { getUnitThumbnails } from '@/db/photos';
 import { deleteUnit, listUnits, Unit } from '@/db/units';
 
@@ -22,7 +20,6 @@ const STAGE_FILTER_SECTIONS = [{ title: 'Filter by Stage', items: [ALL_STAGES_LA
 
 export default function UnitsScreen() {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
   const router = useRouter();
   const [units, setUnits] = useState<Unit[]>([]);
   const [thumbnails, setThumbnails] = useState<Record<number, string>>({});
@@ -77,7 +74,7 @@ export default function UnitsScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabBarHeight + 24 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: SCREEN_BOTTOM_PADDING }}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Units</Text>
           {units.length > 0 && (
@@ -138,7 +135,6 @@ export default function UnitsScreen() {
           })
         )}
       </ScrollView>
-      <Fab onPress={() => router.push('/unit/new')} />
     </View>
   );
 }

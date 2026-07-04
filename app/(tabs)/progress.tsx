@@ -1,4 +1,3 @@
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -6,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, Stage, StageColors, StageLabels, Stages } from '@/constants/theme';
+import { Colors, SCREEN_BOTTOM_PADDING, Stage, StageColors, StageLabels, Stages } from '@/constants/theme';
 import { getStageCounts } from '@/db/units';
 
 const EMPTY_COUNTS: Record<Stage, number> = {
@@ -21,7 +20,6 @@ const EMPTY_COUNTS: Record<Stage, number> = {
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
   const [counts, setCounts] = useState<Record<Stage, number>>(EMPTY_COUNTS);
 
   useFocusEffect(
@@ -37,7 +35,7 @@ export default function ProgressScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabBarHeight + 24 }}>
+      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: SCREEN_BOTTOM_PADDING }}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Progress</Text>
         <View style={styles.streakBadge}>
