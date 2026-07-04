@@ -7,6 +7,7 @@ import { StagePill } from '@/components/stage-pill';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FACTIONS, isSpaceMarines, SPACE_MARINE_CHAPTERS } from '@/constants/factions';
 import { Colors, Stage, Stages } from '@/constants/theme';
+import { UNIT_CATALOG } from '@/constants/unit-catalog';
 import { listRecipes, Recipe } from '@/db/recipes';
 import { Unit, UnitInput } from '@/db/units';
 
@@ -14,6 +15,8 @@ const FACTION_SECTIONS = Object.entries(FACTIONS).map(([allegiance, items]) => (
   title: allegiance,
   items,
 }));
+
+const CHAPTER_SECTIONS = [{ title: 'Chapter', items: [...SPACE_MARINE_CHAPTERS] }];
 
 export function UnitForm({
   initialValues,
@@ -42,12 +45,15 @@ export function UnitForm({
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [saving, setSaving] = useState(false);
   const [factionPickerVisible, setFactionPickerVisible] = useState(false);
+  const [chapterPickerVisible, setChapterPickerVisible] = useState(false);
+  const [unitNamePickerVisible, setUnitNamePickerVisible] = useState(false);
 
   useEffect(() => {
     listRecipes().then(setAllRecipes);
   }, []);
 
   const showChapterPicker = isSpaceMarines(army);
+  const unitNameSections = [{ title: army || 'Units', items: army ? UNIT_CATALOG[army] ?? [] : [] }];
 
   function toggleRecipe(id: number) {
     setPinnedRecipeIds((prev) => (prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]));
@@ -90,21 +96,6 @@ export function UnitForm({
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.label}>Name</Text>
-      <TextInput
-        style={styles.input}
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. Intercessor Squad"
-        placeholderTextColor={Colors.textSecondary}
-      />
-
-      {photosSection ?? (
-        <View style={styles.photosHint}>
-          <Text style={styles.photosHintLabel}>Save this unit to start adding stage photos.</Text>
-        </View>
-      )}
-
       <Text style={styles.label}>Army</Text>
       <Pressable style={styles.input} onPress={() => setFactionPickerVisible(true)}>
         <Text style={army ? styles.inputValue : styles.inputPlaceholder}>{army || 'Choose an army'}</Text>
@@ -117,7 +108,10 @@ export function UnitForm({
         allowCustom
         onClose={() => setFactionPickerVisible(false)}
         onSelect={(value) => {
-          setArmy(value);
+          if (value !== army) {
+            setArmy(value);
+            setName('');
+          }
           if (!isSpaceMarines(value)) setChapter(null);
           setFactionPickerVisible(false);
         }}
@@ -126,17 +120,43 @@ export function UnitForm({
       {showChapterPicker && (
         <>
           <Text style={styles.label}>Chapter</Text>
-          <View style={styles.wrapRow}>
-            {SPACE_MARINE_CHAPTERS.map((c) => (
-              <Pressable
-                key={c}
-                style={[styles.optionChip, chapter === c && styles.optionChipActive]}
-                onPress={() => setChapter(c)}>
-                <Text style={[styles.optionChipLabel, chapter === c && styles.optionChipLabelActive]}>{c}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <Pressable style={styles.input} onPress={() => setChapterPickerVisible(true)}>
+            <Text style={chapter ? styles.inputValue : styles.inputPlaceholder}>{chapter || 'Choose a chapter'}</Text>
+          </Pressable>
+          <PickerModal
+            visible={chapterPickerVisible}
+            title="Choose Chapter"
+            sections={CHAPTER_SECTIONS}
+            onClose={() => setChapterPickerVisible(false)}
+            onSelect={(value) => {
+              setChapter(value);
+              setChapterPickerVisible(false);
+            }}
+          />
         </>
+      )}
+
+      <Text style={styles.label}>Unit</Text>
+      <Pressable style={styles.input} onPress={() => setUnitNamePickerVisible(true)}>
+        <Text style={name ? styles.inputValue : styles.inputPlaceholder}>{name || 'Choose or type a unit name'}</Text>
+      </Pressable>
+      <PickerModal
+        visible={unitNamePickerVisible}
+        title="Choose Unit"
+        sections={unitNameSections}
+        searchable
+        allowCustom
+        onClose={() => setUnitNamePickerVisible(false)}
+        onSelect={(value) => {
+          setName(value);
+          setUnitNamePickerVisible(false);
+        }}
+      />
+
+      {photosSection ?? (
+        <View style={styles.photosHint}>
+          <Text style={styles.photosHintLabel}>Save this unit to start adding stage photos.</Text>
+        </View>
       )}
 
       <Text style={styles.label}>Stage</Text>

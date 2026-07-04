@@ -51,3 +51,28 @@ export async function deleteStagePhoto(unitId: number, stage: Stage): Promise<st
   await db.runAsync('DELETE FROM unit_stage_photos WHERE unit_id = ? AND stage = ?', unitId, stage);
   return row?.photo_uri ?? null;
 }
+
+// One "at a glance" thumbnail per unit — the most advanced pipeline stage that has a photo.
+export async function getUnitThumbnails(): Promise<Record<number, string>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ unit_id: number } & PhotoRow>(
+    'SELECT unit_id, stage, photo_uri, taken_at FROM unit_stage_photos'
+  );
+  const byUnit = new Map<number, Partial<Record<Stage, PhotoRow>>>();
+  for (const row of rows) {
+    const entry = byUnit.get(row.unit_id) ?? {};
+    entry[row.stage as Stage] = row;
+    byUnit.set(row.unit_id, entry);
+  }
+  const result: Record<number, string> = {};
+  for (const [unitId, stageMap] of byUnit) {
+    for (let i = Stages.length - 1; i >= 0; i--) {
+      const match = stageMap[Stages[i]];
+      if (match) {
+        result[unitId] = `${match.photo_uri}?t=${match.taken_at}`;
+        break;
+      }
+    }
+  }
+  return result;
+}

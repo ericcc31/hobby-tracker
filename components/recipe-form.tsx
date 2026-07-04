@@ -9,10 +9,12 @@ import { Colors } from '@/constants/theme';
 import { listUnits, Unit } from '@/db/units';
 import { Recipe, RecipeInput, RecipeStep } from '@/db/recipes';
 
-const PAINT_SECTIONS = PAINT_CATALOG.map((range) => ({
-  title: `${range.brand} – ${range.range}`,
-  items: range.paints,
-}));
+const BRANDS: string[] = Array.from(new Set(PAINT_CATALOG.map((r) => r.brand)));
+const BRAND_SECTIONS = [{ title: 'Brand', items: BRANDS }];
+
+function paintSectionsForBrand(brand: string) {
+  return PAINT_CATALOG.filter((r) => r.brand === brand).map((r) => ({ title: r.range, items: r.paints }));
+}
 
 export function RecipeForm({
   initialValues,
@@ -35,6 +37,7 @@ export function RecipeForm({
   const [allUnits, setAllUnits] = useState<Unit[]>([]);
   const [saving, setSaving] = useState(false);
   const [paintPickerIndex, setPaintPickerIndex] = useState<number | null>(null);
+  const [paintPickerBrand, setPaintPickerBrand] = useState<string | null>(null);
 
   useEffect(() => {
     listUnits().then(setAllUnits);
@@ -109,7 +112,12 @@ export function RecipeForm({
       {steps.map((step, index) => (
         <View key={index} style={styles.stepRow}>
           <View style={styles.stepFields}>
-            <Pressable style={styles.input} onPress={() => setPaintPickerIndex(index)}>
+            <Pressable
+              style={styles.input}
+              onPress={() => {
+                setPaintPickerBrand(null);
+                setPaintPickerIndex(index);
+              }}>
               <Text style={step.paintName ? styles.inputValue : styles.inputPlaceholder}>
                 {step.paintName || 'Choose a paint'}
               </Text>
@@ -169,15 +177,35 @@ export function RecipeForm({
       )}
 
       <PickerModal
-        visible={paintPickerIndex !== null}
-        title="Choose Paint"
-        sections={PAINT_SECTIONS}
-        searchable
+        visible={paintPickerIndex !== null && paintPickerBrand === null}
+        title="Choose Brand"
+        sections={BRAND_SECTIONS}
         allowCustom
         onClose={() => setPaintPickerIndex(null)}
         onSelect={(value) => {
+          if (BRANDS.includes(value)) {
+            setPaintPickerBrand(value);
+          } else if (paintPickerIndex !== null) {
+            // Custom brand typed directly — use it as the final paint name.
+            updateStep(paintPickerIndex, 'paintName', value);
+            setPaintPickerIndex(null);
+          }
+        }}
+      />
+      <PickerModal
+        visible={paintPickerIndex !== null && paintPickerBrand !== null}
+        title={paintPickerBrand ?? 'Choose Paint'}
+        sections={paintPickerBrand ? paintSectionsForBrand(paintPickerBrand) : []}
+        searchable
+        allowCustom
+        onClose={() => {
+          setPaintPickerIndex(null);
+          setPaintPickerBrand(null);
+        }}
+        onSelect={(value) => {
           if (paintPickerIndex !== null) updateStep(paintPickerIndex, 'paintName', value);
           setPaintPickerIndex(null);
+          setPaintPickerBrand(null);
         }}
       />
     </ScrollView>

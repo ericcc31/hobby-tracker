@@ -1,3 +1,4 @@
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -20,6 +21,7 @@ const EMPTY_COUNTS: Record<Stage, number> = {
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [counts, setCounts] = useState<Record<Stage, number>>(EMPTY_COUNTS);
 
   useFocusEffect(
@@ -35,7 +37,7 @@ export default function ProgressScreen() {
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12 }}>
+      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabBarHeight + 24 }}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>Progress</Text>
         <View style={styles.streakBadge}>

@@ -1,26 +1,36 @@
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
 import { Fab } from '@/components/fab';
+import { PickerModal } from '@/components/picker-modal';
 import { SectionHeader } from '@/components/section-header';
 import { StagePill } from '@/components/stage-pill';
 import { Colors, Stage, StageLabels, Stages } from '@/constants/theme';
+import { getUnitThumbnails } from '@/db/photos';
 import { deleteUnit, listUnits, Unit } from '@/db/units';
+
+const ALL_STAGES_LABEL = 'All stages';
+const STAGE_FILTER_SECTIONS = [{ title: 'Filter by Stage', items: [ALL_STAGES_LABEL, ...Stages.map((s) => StageLabels[s])] }];
 
 export default function UnitsScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const router = useRouter();
   const [units, setUnits] = useState<Unit[]>([]);
-  const [viewMode, setViewMode] = useState<'all' | 'faction'>('all');
+  const [thumbnails, setThumbnails] = useState<Record<number, string>>({});
   const [stageFilter, setStageFilter] = useState<Stage | null>(null);
+  const [filterPickerVisible, setFilterPickerVisible] = useState(false);
 
   const refresh = useCallback(() => {
     listUnits().then(setUnits);
+    getUnitThumbnails().then(setThumbnails);
   }, []);
 
   useFocusEffect(refresh);
@@ -64,66 +74,55 @@ export default function UnitsScreen() {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: tabBarHeight + 24 }}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Units</Text>
-          <View style={styles.segmented}>
-            <Pressable
-              style={[styles.segment, viewMode === 'all' && styles.segmentActive]}
-              onPress={() => setViewMode('all')}>
-              <Text style={[styles.segmentLabel, viewMode === 'all' && styles.segmentLabelActive]}>All</Text>
+          {units.length > 0 && (
+            <Pressable style={styles.filterButton} onPress={() => setFilterPickerVisible(true)}>
+              <Text style={styles.filterButtonLabel}>{stageFilter ? StageLabels[stageFilter] : ALL_STAGES_LABEL}</Text>
+              <Text style={styles.filterButtonCaret}>▾</Text>
             </Pressable>
-            <Pressable
-              style={[styles.segment, viewMode === 'faction' && styles.segmentActive]}
-              onPress={() => setViewMode('faction')}>
-              <Text style={[styles.segmentLabel, viewMode === 'faction' && styles.segmentLabelActive]}>
-                Faction
-              </Text>
-            </Pressable>
-          </View>
+          )}
         </View>
-
-        {units.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-            <Pressable
-              style={[styles.chip, stageFilter === null && styles.chipActive]}
-              onPress={() => setStageFilter(null)}>
-              <Text style={[styles.chipLabel, stageFilter === null && styles.chipLabelActive]}>All stages</Text>
-            </Pressable>
-            {Stages.map((stage) => (
-              <Pressable
-                key={stage}
-                style={[styles.chip, stageFilter === stage && styles.chipActive]}
-                onPress={() => setStageFilter(stage)}>
-                <Text style={[styles.chipLabel, stageFilter === stage && styles.chipLabelActive]}>
-                  {StageLabels[stage]}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        )}
+        <PickerModal
+          visible={filterPickerVisible}
+          title="Filter by Stage"
+          sections={STAGE_FILTER_SECTIONS}
+          onClose={() => setFilterPickerVisible(false)}
+          onSelect={(value) => {
+            if (value === ALL_STAGES_LABEL) {
+              setStageFilter(null);
+            } else {
+              const match = Stages.find((s) => StageLabels[s] === value);
+              setStageFilter(match ?? null);
+            }
+            setFilterPickerVisible(false);
+          }}
+        />
 
         {spotlight && (
           <Card style={styles.spotlightCard}>
-            <Text style={styles.spotlightLabel}>IN PROGRESS</Text>
-            <Text style={styles.spotlightName}>{spotlight.name}</Text>
-            <Text style={styles.spotlightChapter}>{spotlight.chapter ?? spotlight.army}</Text>
-            <StagePill stage={spotlight.stage} />
+            {thumbnails[spotlight.id] ? (
+              <Image source={{ uri: thumbnails[spotlight.id] }} style={styles.spotlightThumb} contentFit="cover" />
+            ) : (
+              <View style={styles.spotlightThumb} />
+            )}
+            <View style={styles.spotlightInfo}>
+              <Text style={styles.spotlightLabel}>IN PROGRESS</Text>
+              <Text style={styles.spotlightName}>{spotlight.name}</Text>
+              <Text style={styles.spotlightChapter}>{spotlight.chapter ?? spotlight.army}</Text>
+              <StagePill stage={spotlight.stage} />
+            </View>
           </Card>
         )}
 
         {units.length === 0 ? (
           <EmptyState icon="square.grid.2x2.fill" message="No units yet. Tap + to add your first miniature." />
-        ) : viewMode === 'all' ? (
-          <>
-            <SectionHeader title="All units" subtitle={`${filtered.length}`} />
-            <UnitGrid units={filtered} onPress={openUnit} onLongPress={handleLongPress} />
-          </>
         ) : (
           Object.entries(grouped).map(([chapter, chapterUnits]) => (
             <View key={chapter}>
               <SectionHeader title={chapter} subtitle={`${chapterUnits.length}`} />
-              <UnitGrid units={chapterUnits} onPress={openUnit} onLongPress={handleLongPress} />
+              <UnitGrid units={chapterUnits} thumbnails={thumbnails} onPress={openUnit} onLongPress={handleLongPress} />
             </View>
           ))
         )}
@@ -135,10 +134,12 @@ export default function UnitsScreen() {
 
 function UnitGrid({
   units,
+  thumbnails,
   onPress,
   onLongPress,
 }: {
   units: Unit[];
+  thumbnails: Record<number, string>;
   onPress: (id: number) => void;
   onLongPress: (unit: Unit) => void;
 }) {
@@ -151,7 +152,11 @@ function UnitGrid({
           onLongPress={() => onLongPress(unit)}
           style={styles.unitCardWrapper}>
           <Card style={styles.unitCard}>
-            <View style={styles.unitThumb} />
+            {thumbnails[unit.id] ? (
+              <Image source={{ uri: thumbnails[unit.id] }} style={styles.unitThumb} contentFit="cover" />
+            ) : (
+              <View style={styles.unitThumb} />
+            )}
             <Text style={styles.unitName} numberOfLines={1}>
               {unit.name}
             </Text>
@@ -179,52 +184,38 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
   },
-  segmented: {
+  filterButton: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: Colors.surface2,
-    borderRadius: 10,
-    padding: 2,
-  },
-  segment: {
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 14,
-    borderRadius: 8,
+    borderRadius: 14,
   },
-  segmentActive: {
-    backgroundColor: Colors.accent,
-  },
-  segmentLabel: {
-    color: Colors.textSecondary,
+  filterButtonLabel: {
+    color: Colors.text,
     fontSize: 13,
     fontWeight: '600',
   },
-  segmentLabelActive: {
-    color: '#fff',
-  },
-  chipRow: {
-    marginBottom: 4,
-  },
-  chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: Colors.surface2,
-    marginRight: 8,
-  },
-  chipActive: {
-    backgroundColor: Colors.accent,
-  },
-  chipLabel: {
+  filterButtonCaret: {
     color: Colors.textSecondary,
     fontSize: 12,
-    fontWeight: '600',
-  },
-  chipLabelActive: {
-    color: '#fff',
   },
   spotlightCard: {
-    marginTop: 16,
-    gap: 6,
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 12,
+  },
+  spotlightThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: Colors.surface2,
+  },
+  spotlightInfo: {
+    flex: 1,
+    gap: 4,
   },
   spotlightLabel: {
     color: Colors.accent,
@@ -234,13 +225,13 @@ const styles = StyleSheet.create({
   },
   spotlightName: {
     color: Colors.text,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
   },
   spotlightChapter: {
     color: Colors.textSecondary,
     fontSize: 13,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   grid: {
     flexDirection: 'row',
