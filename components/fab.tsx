@@ -1,16 +1,13 @@
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { Colors, NavBar } from '@/constants/theme';
 
 export function Fab({ onPress }: { onPress: () => void }) {
-  const tabBarHeight = useBottomTabBarHeight();
-
   return (
     <Pressable
-      style={({ pressed }) => [styles.fab, { bottom: tabBarHeight + 16 }, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.fab, pressed && styles.pressed]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         onPress();
@@ -23,10 +20,11 @@ export function Fab({ onPress }: { onPress: () => void }) {
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    right: NavBar.sideMargin,
+    bottom: NavBar.bottom + (NavBar.height - NavBar.fabSize) / 2,
+    width: NavBar.fabSize,
+    height: NavBar.fabSize,
+    borderRadius: NavBar.fabSize / 2,
     backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',

@@ -43,6 +43,15 @@ export const StageColors: Record<Stage, string> = {
   finished: '#d65c8a',
 };
 
+// Shared layout numbers for the floating pill nav bar + the Fab that sits beside it.
+export const NavBar = {
+  height: 68,
+  bottom: 28,
+  sideMargin: 24,
+  fabSize: 56,
+  fabGap: 12,
+};
+
 export const Fonts = Platform.select({
   ios: {
     sans: 'system-ui',

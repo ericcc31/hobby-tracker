@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { Colors, NavBar } from '@/constants/theme';
 
 export default function TabLayout() {
   return (
@@ -15,11 +15,11 @@ export default function TabLayout() {
         tabBarShowLabel: true,
         tabBarStyle: {
           position: 'absolute',
-          left: 24,
-          right: 24,
-          bottom: 28,
-          height: 68,
-          borderRadius: 34,
+          left: NavBar.sideMargin,
+          right: NavBar.sideMargin + NavBar.fabSize + NavBar.fabGap,
+          bottom: NavBar.bottom,
+          height: NavBar.height,
+          borderRadius: NavBar.height / 2,
           backgroundColor: Colors.surface,
           borderTopWidth: 0,
           paddingTop: 10,
