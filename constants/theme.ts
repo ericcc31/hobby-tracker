@@ -1,53 +1,57 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
+// Wet Palette is dark-only by design (see app.json userInterfaceStyle).
 export const Colors = {
-  light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
-  },
-  dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-  },
+  background: '#0f0f12',
+  surface: '#1b1b20',
+  surface2: '#24242b',
+  border: '#33333c',
+  text: '#ECEDEE',
+  textSecondary: '#9BA1A6',
+  accent: '#c0392b',
+};
+
+export const Stages = [
+  'bought',
+  'built',
+  'primed',
+  'painted',
+  'based',
+  'transfers',
+  'finished',
+] as const;
+
+export type Stage = (typeof Stages)[number];
+
+export const StageLabels: Record<Stage, string> = {
+  bought: 'Bought',
+  built: 'Built',
+  primed: 'Primed',
+  painted: 'Painted',
+  based: 'Based',
+  transfers: 'Transfers',
+  finished: 'Finished',
+};
+
+export const StageColors: Record<Stage, string> = {
+  bought: '#7a7a82',
+  built: '#b9772e',
+  primed: '#3672b9',
+  painted: '#3e8e5e',
+  based: '#8b5fb0',
+  transfers: '#c9a227',
+  finished: '#d65c8a',
 };
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
     sans: 'normal',
-    serif: 'serif',
     rounded: 'normal',
     mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
 });
